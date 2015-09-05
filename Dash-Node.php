@@ -1,5 +1,26 @@
 <?php
+
+/*
+    This file is part of Dash Ninja.
+    https://github.com/elbereth/dashninja-ctl
+
+    Dash Ninja is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Dash Ninja is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+
+ */
+
 namespace Dash;
+
 use Exception;
 
 define('PROTOCOL_VERSION',70103);
@@ -21,6 +42,8 @@ class EUnexpectedPacketType extends Exception {}
 class EFailedToReadFromPeer extends Exception {}
 class EUnexpectedFragmentation extends Exception {}
 
+// Connect to P2P port of dashd
+// Based on code found on internet for Bitcoin (don't remember the source sorry)
 class Node {
 	private $sock;
 	private $version = 0;
