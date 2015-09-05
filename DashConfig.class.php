@@ -29,7 +29,7 @@ class DashConfig {
   private $mnctlcfg;
 
   // Masternode Control Magic Keyword
-  const DRKMNCTLCFGMAGIC = '#mnctlcfg#';
+  const MAGIC = '#mnctlcfg#';
 
   // Path to config file
   private $configfilename;
@@ -43,15 +43,15 @@ class DashConfig {
     if (file_exists($this->configfilename)) {
       $rawconf = file_get_contents($this->configfilename);
       $conf = explode("\n",trim($rawconf));
-      $magiclen = strlen(DashConfig::DRKMNCTLCFGMAGIC);
+      $magiclen = strlen(DashConfig::MAGIC);
       for ($x = 0; $x < count($conf); $x++) {
-        if ((substr($conf[$x],0,1) == '#') && (substr($conf[$x],0,$magiclen) != DashConfig::DRKMNCTLCFGMAGIC)) {
+        if ((substr($conf[$x],0,1) == '#') && (substr($conf[$x],0,$magiclen) != DashConfig::MAGIC)) {
           $lineval = array(0 => $conf[$x]);
         }
         else {
           $lineval = explode('=',$conf[$x]);
         }
-        if (substr($lineval[0],0,$magiclen) == DashConfig::DRKMNCTLCFGMAGIC) {
+        if (substr($lineval[0],0,$magiclen) == DashConfig::MAGIC) {
           $this->mnctlcfg[substr($lineval[0],$magiclen)] = $lineval[1];
         }
         else {
@@ -125,10 +125,10 @@ class DashConfig {
       }
       foreach ($this->mnctlcfg as $key => $value) {
         if ($value === false) {
-          $rawconf .= DashConfig::DRKMNCTLCFGMAGIC.$key."\n";
+          $rawconf .= DashConfig::MAGIC.$key."\n";
         }
         else {
-          $rawconf .= DashConfig::DRKMNCTLCFGMAGIC.$key.'='.$value."\n";
+          $rawconf .= DashConfig::MAGIC.$key.'='.$value."\n";
         }
       }
       $res = file_put_contents($this->configfilename,$rawconf);
