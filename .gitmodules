@@ -1,0 +1,6 @@
+[submodule "kraken-api-client"]
+	path = kraken-api-client
+	url = https://github.com/payward/kraken-api-client.git
+[submodule "EasyDash-PHP"]
+	path = EasyDash-PHP
+	url = https://github.com/elbereth/EasyDash-PHP.git
