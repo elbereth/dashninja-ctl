@@ -58,7 +58,6 @@ class Node {
 
 		$this->myself = pack('NN', mt_rand(0,0xffffffff), mt_rand(0, 0xffffffff));
                 $this->prot_magic = $prot_magic;
-//                echo "__construct - PROT_MAGIC: [".strToHex($this->prot_magic)."] ($protver)";
 
 		// send "version" packet
 		$pkt = $this->_makeVersionPacket($protver,$versionid,$sversionid);
@@ -219,8 +218,11 @@ class Node {
 	}
 
 	protected function _address($addr, $nServices) {
-		// addr is ipv4:port
-		list($ip, $port) = explode(':', $addr);
+		// addr is ipv4:port or ipv6:port
+		$portpos = strrpos($addr,":");
+		$ip = substr($addr,0,$portpos);
+		$port = substr($addr,$portpos+1,strlen($addr)-$portpos-1);
+		//list($ip, $port) = explode(':', $addr);
 		$data = pack('VV', ($nServices >> 32) & 0xffffffff, $nServices & 0xffffffff);
 		$data .= str_repeat("\0", 12); // reserved, probably for ipv6
 		$data .= inet_pton($ip);

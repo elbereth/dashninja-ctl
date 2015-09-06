@@ -31,6 +31,7 @@ It contains:
 Important: Almost all the scripts uses the private rest API to retrieve and submit data to the database (only dmnblockcomputeexpected uses direct MySQL access).
 
 ## Install:
+* Go to /opt
 * Get latest code from github:
 ```shell
 git clone https://github.com/elbereth/dashninja-ctl.git
@@ -40,3 +41,14 @@ git clone https://github.com/elbereth/dashninja-ctl.git
 
 ## Configuration:
 * Copy dmn.config.inc.php.sample to dmn.config.inc.php and setup your installation.
+
+### dashblocknotify:
+* You need /dev/shm available and writable.
+* Edit dashblocknotify.config.inc.php to indicates each of your nodes you wish to retrieve block info from.
+* You can either retrieve block templates (bt = true) and/or block/transaction (blocks = true). For the later you need to have txindex=1 in your dash config file.
+* Add in each of your nodes in dash.conf a line to enable blocknotify feature:
+```
+blocknotify=/opt/dashninja-ctl/dashblocknotify
+```
+* Restart your node.
+* On each block received by the node, the script will be called and data will be created in /dev/shm.
