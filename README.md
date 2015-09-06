@@ -42,6 +42,19 @@ git clone https://github.com/elbereth/dashninja-ctl.git
 
 ## Configuration:
 * Copy dmn.config.inc.php.sample to dmn.config.inc.php and setup your installation.
+* Add dmncron to your crontab (every minute is what official Dash Ninja uses)
+```
+*/1 * * * * /opt/dashninja-ctl/dmncron
+```
+If you want to enable logging, you need to create the /var/log/dmn/ folder and give the user write access.
+Then add "log" as first argument when calling dmncron:
+```
+*/1 * * * * /opt/dashninja-ctl/dmncron log
+```
+* Add dmnthirdpartiesfetch to your crontab (every minute is fine, can be longer)
+```
+*/1 * * * * /opt/dashninja-ctl/dmnthirdpartiesfetch >> /dev/null
+```
 
 ### dashblocknotify:
 * You need /dev/shm available and writable.
