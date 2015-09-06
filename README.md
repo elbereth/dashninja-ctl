@@ -27,6 +27,7 @@ It contains:
 * Dash Ninja Back-end: https://github.com/elbereth/dashninja-be
 * Dash Ninja Database: https://github.com/elbereth/dashninja-db
 * Dash Ninja Front-End: https://github.com/elbereth/dashninja-fe
+* PHP 5.6 with curl
 
 Important: Almost all the scripts uses the private rest API to retrieve and submit data to the database (only dmnblockcomputeexpected uses direct MySQL access).
 
