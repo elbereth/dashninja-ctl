@@ -35,9 +35,13 @@ Important: Almost all the scripts uses the private rest API to retrieve and subm
 * Go to /opt
 * Get latest code from github:
 ```shell
-git clone https://github.com/elbereth/dashninja-ctl.git
+git clone https://github.com/elbereth/dashninja-ctl.git dmnctl
 ```
-* Get sub-modules.
+* Get sub-modules:
+```shell
+cd dmnctl
+git submodule update --init --recursive
+```
 * Configure the tool.
 
 ## Configuration:
