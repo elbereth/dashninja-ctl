@@ -1,4 +1,4 @@
-#!/usr/bin/php -e
+#!/usr/bin/php
 <?php
 
 /*
@@ -19,6 +19,8 @@
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
  */
+
+DEFINE('DMN_SCRIPT',true);
 
 require_once('EasyDash-PHP/easydash.php');
 require_once('DashConfig.class.php');

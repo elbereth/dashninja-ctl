@@ -643,11 +643,8 @@ function dmn_startstop($dmnpid,$todo,$testnet = false,$nodetype = 'masternode',$
 // Display masternode status and submit statistics to private API
 function dmn_status($dmnpid) {
 
-  global $argv;
-
   $mninfolast = array();
 
-  $mnown = 0;
   $mnlistfinal = array();
   $mnlist2final = array();
   $mnlastseen = array();
@@ -656,12 +653,9 @@ function dmn_status($dmnpid) {
   $difficultyfinal = 0;
   $daemonactive = array();
   $protocolinfo = array();
-  $bhsql = array();
   $curprotocol = 0;
   $oldprotocol = 99999;
 
-  $usemysql = false;
-  $dmnctlrun = date('Y-m-d H:i:s');
   $wsstatus = array();
 
   xecho('Retrieving status for '.count($dmnpid)." nodes\n");
@@ -704,10 +698,15 @@ function dmn_status($dmnpid) {
                           "cmd" => $uname.' "mnbudget show"',
                           "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_show.json");
       $commands[] = array("status" => 0,
-                          "dmnnum" => $dmnnum,
-                          "datatype" => "mnbudgetprojection",
-                          "cmd" => $uname.' "mnbudget projection"',
-                          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_projection.json");
+          "dmnnum" => $dmnnum,
+          "datatype" => "mnbudgetprojection",
+          "cmd" => $uname.' "mnbudget projection"',
+          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_projection.json");
+      $commands[] = array("status" => 0,
+          "dmnnum" => $dmnnum,
+          "datatype" => "mnbudgetfinal",
+          "cmd" => $uname.' "mnfinalbudget show"',
+          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnfinalbudget_show.json");
     }
   }
 
@@ -911,6 +910,7 @@ function dmn_status($dmnpid) {
   $mninfo2 = array();
   $mnbudgetshow = array();
   $mnbudgetprojection = array();
+  $mnbudgetfinal = array();
 
   // Go through all nodes
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
@@ -939,10 +939,6 @@ function dmn_status($dmnpid) {
     $connections = 0;
     $country = '';
     $countrycode = '';
-    $mnpayments = false;
-    $mnstatus = false;
-    $earnings = 0;
-    $enforcemnp = false;
     $spork[$uname] = array();
 
     // Indicate what we are doing
@@ -1001,8 +997,6 @@ function dmn_status($dmnpid) {
         $port = $ipexp[1];
 
         // Default values
-        $mnpayments = "missing";
-        $enforcemnp = "missing";
         $processstatus = 'running';
 
         // Display some feedback
@@ -1113,6 +1107,22 @@ function dmn_status($dmnpid) {
               $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
               $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
               $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
+            }
+          }
+
+          // Parse masternode final budget
+          foreach($dmnpidinfo['mnbudgetfinal'] as $mnbudgetid => $mnbudgetdata) {
+            if (array_key_exists($dashdinfo['testnet']."-".$mnbudgetdata["Hash"], $mnbudgetfinal)) {
+              if (($mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["VotesCount"])<($mnbudgetdata["VotesCount"])) {
+                $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
+                $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetName'] = $mnbudgetid;
+                $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
+              }
+            }
+            else {
+              $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
+              $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetName'] = $mnbudgetid;
+              $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
             }
           }
 
@@ -1234,7 +1244,6 @@ function dmn_status($dmnpid) {
     }
   }
   ksort($mnactivesincefinal,SORT_NATURAL);
-  $mnpercent = 0;
   $mncountinactive = 0;
   $mncountactive = 0;
   foreach($mnlistfinal as $ip => $info) {
@@ -1265,7 +1274,7 @@ function dmn_status($dmnpid) {
     $estpayoutdaily = '???';
   }
 
-  echo "Total Masternodes: $mncount/$mncountinactive    Est.Payout: $estpayoutdaily DASH/day (diff=$difficultyfinal)\n";
+//  echo "Total Masternodes: $mncount/$mncountinactive    Est.Payout: $estpayoutdaily DASH/day (diff=$difficultyfinal)\n";
 
   if (count($wsstatus)>0) {
     $wsmninfo = array();
@@ -1396,6 +1405,11 @@ function dmn_status($dmnpid) {
       $wsmnbudgetprojection[] = $budgetinfo;
     }
 
+    $wsmnbudgetfinal = array();
+    foreach($mnbudgetfinal as $budgetinfo) {
+      $wsmnbudgetfinal[] = $budgetinfo;
+    }
+
     xecho("Submitting status via webservice (".count($wsstatus)." entries): ");
     $response = '';
     $payload = array('nodes' => $wsstatus,
@@ -1406,7 +1420,8 @@ function dmn_status($dmnpid) {
                      'mnlist' => $wsmnlist,
                      'mnlist2' => $wsmnlist2,
                      'mnvotes' => $wsmnvotes,
-                     'mnbudgetshow' => $wsmnbudgetshow,
+        'mnbudgetshow' => $wsmnbudgetshow,
+        'mnbudgetfinal' => $wsmnbudgetfinal,
                      'mnbudgetprojection' => $wsmnbudgetprojection,
                      'stats' => array(0 => array('networkhashps' => $networkhashps),
                                       1 => array('networkhashps' => $networkhashpstest)));
@@ -1500,7 +1515,12 @@ function dmn_status($dmnpid) {
           } else {
             echo $content["data"]["mnbudgetprojection"]."\n";
           }
-
+          xecho("+ Final Budget): ");
+          if ($content["data"]["mnbudgetfinal"] === false) {
+            echo "Failed!\n";
+          } else {
+            echo $content["data"]["mnbudgetfinal"]."\n";
+          }
         }
       }
       elseif (($response['http_code'] >= 400) && ($response['http_code'] <= 499)) {

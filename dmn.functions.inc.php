@@ -30,7 +30,7 @@ function xecho($line) {
 function dmn_checkpid($pid) {
   if ($pid !== false) {
     exec('ps -o comm -p '.$pid,$output,$retval);
-    return (($retval == 0) && ((strlen($output[1])>=5) && (substr($output[1],0,5) == 'dashd')) || ((strlen($output[1])>=9) && (substr($output[1],0,9) == 'darkcoind')));
+    return (($retval == 0) && (count($output)>=2) && ((strlen($output[1])>=5) && (substr($output[1],0,5) == 'dashd')) || ((strlen($output[1])>=9) && (substr($output[1],0,9) == 'darkcoind')));
   }
   else {
     return false;
