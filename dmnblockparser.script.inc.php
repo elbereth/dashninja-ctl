@@ -131,7 +131,7 @@ if ($response['http_code'] == 200) {
     die(202);
   }
   $poolpubkeys = $poolpubkeys['data']['poolpubkeys'];
-  echo " OK (".count($mnpubkeys)." entries)\n";
+  echo " OK (".count($poolpubkeys)." entries)\n";
 }
 else {
   echo "Failed [".$response['http_code']."]\n";
