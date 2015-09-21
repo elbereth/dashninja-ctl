@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.4.0');
+DEFINE('DMN_VERSION','2.4.1');
 
 function dmnpidcmp($a, $b)
 {
@@ -674,7 +674,7 @@ function dmn_status($dmnpid) {
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
     $uname = $dmnpidinfo['uname'];
     $dmnpid[$dmnnum]['pidstatus'] = dmn_checkpid($dmnpidinfo['pid']);
-    if ($dmnpid[$dmnnum]['pidstatus']) {
+    if (($dmnpid[$dmnnum]['pidstatus']) && ($dmnpidinfo['currentbin'] != '')) {
       $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "info",
@@ -686,7 +686,7 @@ function dmn_status($dmnpid) {
   // Only vh 3
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
     $uname = $dmnpidinfo['uname'];
-    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['versionhandling'] >= 3)) {
+    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '') && ($dmnpidinfo['versionhandling'] >= 3)) {
       $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "mnlistfull",
@@ -713,7 +713,7 @@ function dmn_status($dmnpid) {
   // Only vh 2 and below
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
     $uname = $dmnpidinfo['uname'];
-    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['versionhandling'] <= 2)) {
+    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '') && ($dmnpidinfo['versionhandling'] <= 2)) {
       $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "mnlist",
@@ -755,7 +755,7 @@ function dmn_status($dmnpid) {
   // All vh
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
     $uname = $dmnpidinfo['uname'];
-    if ($dmnpidinfo['pidstatus']) {
+    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '')) {
       $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "mncurrent",
@@ -866,7 +866,7 @@ function dmn_status($dmnpid) {
         $nbconnections = strlen($dmnpidinfo['info']['connections']);
       }
     }
-    if ($dmnpidinfo['pidstatus']) {
+    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '')) {
       $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "blockhash",
@@ -877,6 +877,15 @@ function dmn_status($dmnpid) {
                           "datatype" => "networkhashps",
                           "cmd" => $uname.' getnetworkhashps',
                           "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getnetworkhashps.json");
+      if (($dmnpidinfo['versionhandling'] >= 3) && array_key_exists("mnbudgetshow",$dmnpidinfo) && is_array($dmnpidinfo["mnbudgetshow"])) {
+        foreach ($dmnpidinfo["mnbudgetshow"] as $mnbudgetid => $mnbudgetdata) {
+          $commands[] = array("status" => 0,
+              "dmnnum" => $dmnnum,
+              "datatype" => "mnbudget-getvotes-" . $mnbudgetid,
+              "cmd" => $uname . ' "mnbudget getvotes ' . $mnbudgetid . '"',
+              "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_getvotes_$mnbudgetid.json");
+        }
+      }
     }
   }
 
@@ -895,6 +904,15 @@ function dmn_status($dmnpid) {
       if (!unlink($command['file'])) {
         xecho("Could not delete file: ".$command['file']."\n");
       }
+      if ((strlen($command['datatype']) > 18) && (substr($command['datatype'],0,18) == 'mnbudget-getvotes-')) {
+        $res = json_decode($res,true);
+        if ($res === false) {
+          xecho("Could not decode JSON from ".$command['file']."\n");
+        }
+        if (array_key_exists('result',$res)) {
+          $res = $res['result'];
+        }
+      }
     }
     $dmnpid[$command['dmnnum']][$command['datatype']] = $res;
   }
@@ -911,6 +929,9 @@ function dmn_status($dmnpid) {
   $mnbudgetshow = array();
   $mnbudgetprojection = array();
   $mnbudgetfinal = array();
+  $mndonationlistfinal = array();
+  $mnvoteslistfinal = array();
+  $mnbudgetvotes = array(array(),array());
 
   // Go through all nodes
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
@@ -945,10 +966,15 @@ function dmn_status($dmnpid) {
     xecho(str_pad($uname,$nbuname)." ".str_pad($dmnpidinfo['pid'],$nbpid,' ',STR_PAD_LEFT)." ");
 
     // If the process is running
-    if ($dmnpidinfo['pid'] !== false) {
+    if (($dmnpidinfo['pid'] !== false) && ($dmnpidinfo['currentbin'] != '')) {
 
       // Spork info
-      $spork[$uname] = $dmnpidinfo['spork'];
+      if (array_key_exists("spork",$dmnpidinfo)) {
+        $spork[$uname] = $dmnpidinfo['spork'];
+      }
+      else {
+        $spork[$uname] = array();
+      }
 
       // Parse status
       $dashdinfo = dmn_getstatus($dmnpidinfo['info'],$dmnpidinfo['blockhash']);
@@ -1090,6 +1116,21 @@ function dmn_status($dmnpid) {
               $mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
               $mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
             }
+            if (array_key_exists("mnbudget-getvotes-".$mnbudgetid,$dmnpidinfo)) {
+              if (!array_key_exists($mnbudgetid,$mnbudgetvotes[$dashdinfo['testnet']])) {
+                $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid] = array();
+              }
+              foreach($dmnpidinfo["mnbudget-getvotes-".$mnbudgetid] as $mnbudgetvotehash => $mnbudgetvotedata) {
+                if (array_key_exists($mnbudgetvotehash,$mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid])) {
+                  if ($mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash]["nTime"] < $mnbudgetvotedata["nTime"]) {
+                    $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash] = $mnbudgetvotedata;
+                  }
+                }
+                else {
+                  $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash] = $mnbudgetvotedata;
+                }
+              }
+            }
           }
 
           // Parse masternode budgets projections
@@ -1112,7 +1153,8 @@ function dmn_status($dmnpid) {
 
           // Parse masternode final budget
           foreach($dmnpidinfo['mnbudgetfinal'] as $mnbudgetid => $mnbudgetdata) {
-            if (array_key_exists($dashdinfo['testnet']."-".$mnbudgetdata["Hash"], $mnbudgetfinal)) {
+            if (array_key_exists($dashdinfo['testnet']."-".$mnbudgetdata["Hash"], $mnbudgetfinal) &&
+                array_key_exists("VotesCount",$mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]])) {
               if (($mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["VotesCount"])<($mnbudgetdata["VotesCount"])) {
                 $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
                 $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetName'] = $mnbudgetid;
@@ -1206,7 +1248,7 @@ function dmn_status($dmnpid) {
         $countrycode = '__';
       }
       $processstatus = 'stopped';
-      echo "NS ".str_repeat(" ",105)."$ip\n";
+      echo "NS ".str_repeat(" ",96)."$ip\n";
     }
     else {
       $processstatus = 'disabled';
@@ -1341,6 +1383,7 @@ function dmn_status($dmnpid) {
     foreach ($mndonationlistfinal as $key => $data) {
       $wsmndonation[] = $data;
     }
+    $wsmnvotes = array();
     foreach($mnvoteslistfinal as $ip => $mnvotesinfo) {
       $ipport = explode(":",$ip);
       $mnip = $ipport[0];
@@ -1399,6 +1442,24 @@ function dmn_status($dmnpid) {
       $wsmnbudgetshow[] = $budgetinfo;
     }
 
+    $wsmnbudgetvotes = array();
+    foreach($mnbudgetvotes as $testnet => $mnbudgetvotesdata) {
+      foreach($mnbudgetvotesdata as $budgetid => $mnbudgetvotesdata2) {
+        foreach($mnbudgetvotesdata2 as $mnvotehash => $mnbudgetvotesdata3) {
+          list($mnoutputhash, $mnoutputindex) = explode("-", $mnvotehash);
+          $wsmnbudgetvotes[] = array(
+              'BudgetTestnet' => intval($testnet),
+              'BudgetId' => $budgetid,
+              'MasternodeOutputHash' => $mnoutputhash,
+              'MasternodeOutputIndex' => intval($mnoutputindex),
+              'VoteHash' => $mnbudgetvotesdata3["nHash"],
+              'VoteValue' => $mnbudgetvotesdata3["Vote"],
+              'VoteTime' => $mnbudgetvotesdata3["nTime"],
+              'VoteIsValid' => $mnbudgetvotesdata3["fValid"],
+          );
+        }
+      }
+    }
 
     $wsmnbudgetprojection = array();
     foreach($mnbudgetprojection as $budgetinfo) {
@@ -1422,6 +1483,7 @@ function dmn_status($dmnpid) {
                      'mnvotes' => $wsmnvotes,
         'mnbudgetshow' => $wsmnbudgetshow,
         'mnbudgetfinal' => $wsmnbudgetfinal,
+      'mnbudgetvotes' => $wsmnbudgetvotes,
                      'mnbudgetprojection' => $wsmnbudgetprojection,
                      'stats' => array(0 => array('networkhashps' => $networkhashps),
                                       1 => array('networkhashps' => $networkhashpstest)));
@@ -1515,6 +1577,12 @@ function dmn_status($dmnpid) {
           } else {
             echo $content["data"]["mnbudgetprojection"]."\n";
           }
+          xecho("+ Budget (Votes): ");
+          if ($content["data"]["mnbudgetvotes"] === false) {
+            echo "Failed!\n";
+          } else {
+            echo $content["data"]["mnbudgetvotes"]."\n";
+          }
           xecho("+ Final Budget): ");
           if ($content["data"]["mnbudgetfinal"] === false) {
             echo "Failed!\n";
@@ -1545,7 +1613,7 @@ function dmn_status($dmnpid) {
 $lastrefresh = gmdate('Y-m-d H:i:s');
 $starttime = microtime(true);
 
-xecho("Dash Ninja Control [dmnctl] v".DMN_VERSION." (".date('Y-m-d H:i:s',filemtime($argv[0])).")\n");
+xecho("Dash Ninja Control [dmnctl] v".DMN_VERSION." (".date('Y-m-d H:i:s',filemtime(__FILE__)).")\n");
 
 if ($argc > 1) {
   xecho("Querying list of nodes for this hub: ");
