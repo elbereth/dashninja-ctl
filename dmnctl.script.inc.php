@@ -428,7 +428,10 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
     else {
       echo "Error (Failed to move)\n";
     }
-    if (substr($versionraw,0,5) == '0.12.') {
+    if (substr($versionraw,0,7) == '0.12.1.') {
+      $versionhandling = 4;
+    }
+    elseif (substr($versionraw,0,5) == '0.12.') {
       $versionhandling = 3;
     }
     else {
@@ -683,7 +686,7 @@ function dmn_status($dmnpid) {
     }
   }
 
-  // Only vh 3
+  // Only vh 3+
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
     $uname = $dmnpidinfo['uname'];
     if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '') && ($dmnpidinfo['versionhandling'] >= 3)) {
@@ -692,21 +695,37 @@ function dmn_status($dmnpid) {
                           "datatype" => "mnlistfull",
                           "cmd" => $uname.' "masternode list full"',
                           "file" => "/dev/shm/dmnctl/$uname.$tmpdate.masternode_list.json");
-      $commands[] = array("status" => 0,
-                          "dmnnum" => $dmnnum,
-                          "datatype" => "mnbudgetshow",
-                          "cmd" => $uname.' "mnbudget show"',
-                          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_show.json");
+      // v12.1 (vh=4)
+      if ($dmnpidinfo['versionhandling'] >= 4) {
+        $commands[] = array("status" => 0,
+            "dmnnum" => $dmnnum,
+            "datatype" => "mnbudgetshow",
+            "cmd" => $uname . ' "mnbudget list"',
+            "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_show.json");
+        $commands[] = array("status" => 0,
+            "dmnnum" => $dmnnum,
+            "datatype" => "mnbudgetfinal",
+            "cmd" => $uname.' "mnfinalbudget list"',
+            "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnfinalbudget_show.json");
+      }
+      // v12.0 (vh=3)
+      else {
+        $commands[] = array("status" => 0,
+            "dmnnum" => $dmnnum,
+            "datatype" => "mnbudgetshow",
+            "cmd" => $uname . ' "mnbudget show"',
+            "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_show.json");
+        $commands[] = array("status" => 0,
+            "dmnnum" => $dmnnum,
+            "datatype" => "mnbudgetfinal",
+            "cmd" => $uname.' "mnfinalbudget show"',
+            "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnfinalbudget_show.json");
+      }
       $commands[] = array("status" => 0,
           "dmnnum" => $dmnnum,
           "datatype" => "mnbudgetprojection",
           "cmd" => $uname.' "mnbudget projection"',
           "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_projection.json");
-      $commands[] = array("status" => 0,
-          "dmnnum" => $dmnnum,
-          "datatype" => "mnbudgetfinal",
-          "cmd" => $uname.' "mnfinalbudget show"',
-          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnfinalbudget_show.json");
     }
   }
 
@@ -927,7 +946,7 @@ function dmn_status($dmnpid) {
 
   $mninfo2 = array();
   $mnbudgetshow = array();
-  $mnbudgetprojection = array();
+  $mnbudgetprojection = array(array(),array());
   $mnbudgetfinal = array();
   $mndonationlistfinal = array();
   $mnvoteslistfinal = array();
@@ -1101,53 +1120,60 @@ function dmn_status($dmnpid) {
         elseif ($dmnpidinfo['versionhandling'] >= 3) {
 
           // Parse masternode budgets proposals
-          foreach($dmnpidinfo['mnbudgetshow'] as $mnbudgetid => $mnbudgetdata) {
-            if (array_key_exists($dashdinfo['testnet']."-".$mnbudgetdata["Hash"], $mnbudgetshow)) {
-              if (($mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["Yeas"]
-              +$mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["Nays"]
-              +$mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["Abstains"])<($mnbudgetdata["Yeas"]+$mnbudgetdata["Nays"]+$mnbudgetdata["Abstains"])) {
-                $mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
-                $mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
-                $mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
-              }
-            }
-            else {
-              $mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
-              $mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
-              $mnbudgetshow[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
-            }
-            if (array_key_exists("mnbudget-getvotes-".$mnbudgetid,$dmnpidinfo)) {
-              if (!array_key_exists($mnbudgetid,$mnbudgetvotes[$dashdinfo['testnet']])) {
-                $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid] = array();
-              }
-              foreach($dmnpidinfo["mnbudget-getvotes-".$mnbudgetid] as $mnbudgetvotehash => $mnbudgetvotedata) {
-                if (array_key_exists($mnbudgetvotehash,$mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid])) {
-                  if ($mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash]["nTime"] < $mnbudgetvotedata["nTime"]) {
-                    $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash] = $mnbudgetvotedata;
-                  }
+          if (is_array($dmnpidinfo['mnbudgetshow'])) {
+            foreach ($dmnpidinfo['mnbudgetshow'] as $mnbudgetid => $mnbudgetdata) {
+              if (array_key_exists($dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"], $mnbudgetshow)) {
+                if (($mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]["Yeas"]
+                        + $mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]["Nays"]
+                        + $mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]["Abstains"]) < ($mnbudgetdata["Yeas"] + $mnbudgetdata["Nays"] + $mnbudgetdata["Abstains"])
+                ) {
+                  $mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]] = $mnbudgetdata;
+                  $mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
+                  $mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
                 }
-                else {
-                  $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash] = $mnbudgetvotedata;
+              } else {
+                $mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]] = $mnbudgetdata;
+                $mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
+                $mnbudgetshow[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
+              }
+              if (array_key_exists("mnbudget-getvotes-" . $mnbudgetid, $dmnpidinfo)) {
+                if (!array_key_exists($mnbudgetid, $mnbudgetvotes[$dashdinfo['testnet']])) {
+                  $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid] = array();
+                }
+                if (is_array($dmnpidinfo["mnbudget-getvotes-" . $mnbudgetid])) {
+                  foreach ($dmnpidinfo["mnbudget-getvotes-" . $mnbudgetid] as $mnbudgetvotehash => $mnbudgetvotedata) {
+                    if (array_key_exists($mnbudgetvotehash, $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid])) {
+                      if ($mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash]["nTime"] < $mnbudgetvotedata["nTime"]) {
+                        $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash] = $mnbudgetvotedata;
+                      }
+                    } else {
+                      $mnbudgetvotes[$dashdinfo['testnet']][$mnbudgetid][$mnbudgetvotehash] = $mnbudgetvotedata;
+                    }
+                  }
                 }
               }
             }
           }
 
           // Parse masternode budgets projections
-          foreach($dmnpidinfo['mnbudgetprojection'] as $mnbudgetid => $mnbudgetdata) {
-            if (array_key_exists($dashdinfo['testnet']."-".$mnbudgetdata["Hash"], $mnbudgetprojection)) {
-              if (($mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["Yeas"]
-                      +$mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["Nays"]
-                      +$mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["Abstains"])<($mnbudgetdata["Yeas"]+$mnbudgetdata["Nays"]+$mnbudgetdata["Abstains"])) {
-                $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
-                $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
-                $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
+          if (is_array($dmnpidinfo['mnbudgetprojection'])) {
+            foreach ($dmnpidinfo['mnbudgetprojection'] as $mnbudgetid => $mnbudgetdata) {
+              if (is_array($mnbudgetdata) && array_key_exists("Yeas", $mnbudgetdata) && array_key_exists("Nays", $mnbudgetdata) && array_key_exists("Abstains", $mnbudgetdata)) {
+                if (array_key_exists($mnbudgetdata["Hash"], $mnbudgetprojection[$dashdinfo['testnet']])) {
+                  if (($mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]]["Yeas"]
+                          + $mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]]["Nays"]
+                          + $mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]]["Abstains"]) < ($mnbudgetdata["Yeas"] + $mnbudgetdata["Nays"] + $mnbudgetdata["Abstains"])
+                  ) {
+                    $mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]] = $mnbudgetdata;
+                    $mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
+                    $mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
+                  }
+                } else {
+                  $mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]] = $mnbudgetdata;
+                  $mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
+                  $mnbudgetprojection[$dashdinfo['testnet']][$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
+                }
               }
-            }
-            else {
-              $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
-              $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetId'] = $mnbudgetid;
-              $mnbudgetprojection[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
             }
           }
 
@@ -1462,8 +1488,10 @@ function dmn_status($dmnpid) {
     }
 
     $wsmnbudgetprojection = array();
-    foreach($mnbudgetprojection as $budgetinfo) {
-      $wsmnbudgetprojection[] = $budgetinfo;
+    foreach($mnbudgetprojection as $mnbudgetdata) {
+      foreach($mnbudgetdata as $budgetinfo) {
+        $wsmnbudgetprojection[] = $budgetinfo;
+      }
     }
 
     $wsmnbudgetfinal = array();
