@@ -1180,8 +1180,8 @@ function dmn_status($dmnpid) {
           // Parse masternode final budget
           foreach($dmnpidinfo['mnbudgetfinal'] as $mnbudgetid => $mnbudgetdata) {
             if (array_key_exists($dashdinfo['testnet']."-".$mnbudgetdata["Hash"], $mnbudgetfinal) &&
-                array_key_exists("VotesCount",$mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]])) {
-              if (($mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["VotesCount"])<($mnbudgetdata["VotesCount"])) {
+                array_key_exists("VoteCount",$mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]])) {
+              if (($mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["VoteCount"])<($mnbudgetdata["VoteCount"])) {
                 $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
                 $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetName'] = $mnbudgetid;
                 $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
