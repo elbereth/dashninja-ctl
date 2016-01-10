@@ -1515,9 +1515,9 @@ function dmn_status($dmnpid) {
                      'mnbudgetprojection' => $wsmnbudgetprojection,
                      'stats' => array(0 => array('networkhashps' => $networkhashps),
                                       1 => array('networkhashps' => $networkhashpstest)));
-    $content = dmn_cmd_post('ping',$payload,$response);
-    if (strlen($content) > 0) {
-      $content = json_decode($content,true);
+    $contentraw = dmn_cmd_post('ping',$payload,$response);
+    if (strlen($contentraw) > 0) {
+      $content = json_decode($contentraw,true);
       if (($response['http_code'] >= 200) && ($response['http_code'] <= 299)) {
         echo "Success (".$response['http_code'].")\n";
         if (is_array($content["data"])) {
@@ -1621,6 +1621,11 @@ function dmn_status($dmnpid) {
       }
       elseif (($response['http_code'] >= 400) && ($response['http_code'] <= 499)) {
         echo "Error (".$response['http_code'].": ".$content['message'].")\n";
+      }
+      else {
+        echo "Unknown (".$response['http_code'].")\n";
+        var_dump($response);
+        var_dump($contentraw);
       }
     }
     else {

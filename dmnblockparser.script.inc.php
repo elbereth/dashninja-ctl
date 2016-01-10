@@ -175,6 +175,7 @@ else {
   }
   die(214);
 }
+var_dump($mnsuperblocks);
 
 function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, &$bhws, &$bws, &$btarchive, &$blockarchive, &$txarchive) {
 

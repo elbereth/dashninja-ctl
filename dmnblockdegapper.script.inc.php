@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.0.1');
+define('DMN_VERSION','1.0.2');
 
 xecho('dmnblockdegapper v'.DMN_VERSION."\n");
 
@@ -115,7 +115,7 @@ else {
     xecho(sprintf("#%'.03d",$id+1)." ($gap): ");
     $output = array();
     $result = 0;
-    $lastline = exec(DMN_DIR."dashblockretrieve p2pool $gap",$output,$result);
+    $lastline = exec(DMN_DIR."/dashblockretrieve p2pool $gap",$output,$result);
     if ($result == 0) {
       echo "OK";
     }

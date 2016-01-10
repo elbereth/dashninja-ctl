@@ -27,7 +27,7 @@ require_once('DashConfig.class.php');
 require_once('dmn.config.inc.php');
 require_once('dashblocknotify.config.inc.php');
 
-define('DASHBLOCKRETRIEVE','0.2.0-beta');
+define('DASHBLOCKRETRIEVE','0.2.1-beta');
 
 function xecho($line) {
   echo date('Y-m-d H:i:s').' - '.$line;
@@ -79,14 +79,14 @@ for ($x = $blockidfrom; $x <= $blockidto; $x++) {
     $blockjson = $rpc->getblock($blockhash);
     if ($blockjson !== false) {
       if (!is_dir($outdir."/$uname")) {
-        mkdir($outdir."/$uname");
+        mkdir($outdir."/$uname",0777,true);
       }
       $tmpfilename = tempnam($outdir,"drkblockretrieve.$uname");
       file_put_contents($tmpfilename,json_encode($blockjson));
       $rename = $outdir."/$uname/block.".$blockjson['height'].".json";
       echo "OK\n";
       if (!is_dir($outdir."/$uname/tx")) {
-        mkdir($outdir."/$uname/tx");
+        mkdir($outdir."/$uname/tx",0777,true);
       }
       foreach($blockjson['tx'] as $id => $txhash) {
         xecho("  Retrieving tx #$id ($txhash): ");

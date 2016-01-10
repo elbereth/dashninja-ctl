@@ -44,6 +44,7 @@ catch (Exception $e) {
   // Error
 }
 
+/*
 xecho("Fetching from Cryptsy: ");
 $res = file_get_contents('http://pubapi2.cryptsy.com/api.php?method=singlemarketdata&marketid=155');
 if ($res !== false) {
@@ -57,6 +58,27 @@ if ($res !== false) {
                           "LastUpdate" => time(),
                           "Source" => "cryptsy");
     echo "OK (".$res["return"]["markets"]["DRK"]["lasttradeprice"]." BTC/DASH)\n";
+  }
+  else {
+    echo "Failed (JSON)\n";
+  }
+}
+else {
+  echo "Failed (GET)\n";
+}
+*/
+
+xecho("Fetching from Poloniex: ");
+$res = file_get_contents('https://poloniex.com/public?command=returnTicker');
+if ($res !== false) {
+  $res = json_decode($res,true);
+//  var_dump($res);
+  if (($res !== false) && is_array($res) && (count($res) > 0) && array_key_exists('BTC_DASH',$res)
+      && is_array($res["BTC_DASH"]) && array_key_exists("last",$res["BTC_DASH"])) {
+    $tp["btcdrk"] = array("StatValue" => $res["BTC_DASH"]["last"],
+        "LastUpdate" => time(),
+        "Source" => "poloniex");
+    echo "OK (".$res["BTC_DASH"]["last"]." BTC/DASH)\n";
   }
   else {
     echo "Failed (JSON)\n";
@@ -88,6 +110,7 @@ else {
 }
 */
 
+/*
 xecho("Fetching from BTC-e: ");
 $res = file_get_contents('https://btc-e.com/api/2/btc_usd/ticker');
 if ($res !== false) {
@@ -106,6 +129,28 @@ if ($res !== false) {
 else {
   echo "Failed (GET)\n";
 }
+*/
+
+xecho("Fetching from Bitfinex: ");
+$res = file_get_contents('https://api.bitfinex.com/v1/pubticker/btcusd');
+if ($res !== false) {
+  $res = json_decode($res,true);
+  if (($res !== false) && is_array($res) && array_key_exists('last_price',$res) && array_key_exists('timestamp',$res)) {
+    $tbstamp = date('Y-m-d H:i:s',$res['timestamp']);
+    $tp["usdbtc"] = array("StatValue" => $res["last_price"],
+        "LastUpdate" => intval($res['timestamp']),
+        "Source" => "bitfinex");
+    echo "OK (".$res['last_price']." / $tbstamp)\n";
+  }
+  else {
+    echo "Failed (JSON)\n";
+  }
+}
+else {
+  echo "Failed (GET)\n";
+}
+
+// https://bittrex.com/api/v1.1/public/getticker?market=BTC-DASH
 
 xecho("Fetching from CoinMarketCap: ");
 $res = file_get_contents('http://coinmarketcap-nexuist.rhcloud.com/api/dash');
