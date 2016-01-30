@@ -19,7 +19,7 @@
 
  */
 
-DEFINE('DMN_VERSION','2.2.1');
+DEFINE('DMN_VERSION','2.2.2');
 
 xecho('dmnthirdpartiesfetch v'.DMN_VERSION."\n");
 
@@ -299,7 +299,7 @@ else {
 foreach($proposals as $proposal) {
   xecho("Fetching budget $proposal from DashWhale: ");
   $res = file_get_contents('https://www.dashwhale.org/api/v1/proposal?partner='.DMN_DASHWHALE_PARTNERID.'&hash='.$proposal);
-  $dwentry = array("proposals" => array(),
+  $dwentry = array("proposal" => array(),
                    "comments" => array());
   if ($res !== false) {
     $res = json_decode($res,true);
