@@ -77,6 +77,10 @@ DEFINE('DMN_BLOCKPARSER_ARCHIVE_LONGTERM','/home/dash-blkhist/archive/longterm/'
 //  Minimum number of files to tar together for longterm archiving
 DEFINE('DMN_BLOCKPARSER_ARCHIVE_LONGTERM_MIN',576);
 
+// Third parties fetching configuration
+//  Dash Whale partner ID
+DEFINE('DMN_DASHWHALE_PARTNERID', '000000000000');
+
 // Command Download specifics
 //  Download folder
 DEFINE('DMN_CDL_DIR','/var/www/dash/download/');

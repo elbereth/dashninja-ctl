@@ -19,7 +19,7 @@
 
  */
 
-DEFINE('DMN_VERSION','2.1.0');
+DEFINE('DMN_VERSION','2.2.0');
 
 xecho('dmnthirdpartiesfetch v'.DMN_VERSION."\n");
 
@@ -271,8 +271,84 @@ else {
   echo "Failed (GET)\n";
 }
 
+$dw = array();
+
+xecho("Fetching budgets list from DashWhale: ");
+$res = file_get_contents('https://www.dashwhale.org/api/v1/budget?partner='.DMN_DASHWHALE_PARTNERID);
+$proposals = array();
+if ($res !== false) {
+  $res = json_decode($res,true);
+  if (($res !== false) && is_array($res) && array_key_exists('status',$res) && ($res['status'] == 'ok') && array_key_exists('proposals',$res) && is_array($res["proposals"]) ) {
+    foreach($res["proposals"] as $proposal) {
+      if ($proposal !== false && is_array($proposal) && array_key_exists('hash',$proposal) && is_string($proposal["hash"])) {
+        if (preg_match("/^[0-9a-f]{64}$/s", $proposal["hash"]) === 1) {
+          $proposals[] = $proposal["hash"];
+        }
+      }
+    }
+    echo "OK (".count($proposals)." budgets)\n";
+  }
+  else {
+    echo "Failed (JSON)\n";
+  }
+}
+else {
+  echo "Failed (GET)\n";
+}
+
+foreach($proposals as $proposal) {
+  xecho("Fetching budget $proposal from DashWhale: ");
+  $res = file_get_contents('https://www.dashwhale.org/api/v1/proposal?partner='.DMN_DASHWHALE_PARTNERID.'&hash='.$proposal);
+  $dwentry = array("proposals" => array(),
+                   "comments" => array());
+  if ($res !== false) {
+    $res = json_decode($res,true);
+    if (($res !== false) && is_array($res) && array_key_exists('status',$res) && ($res['status'] == 'ok')
+                                           && array_key_exists('proposal',$res) && is_array($res["proposal"])
+                                           && array_key_exists('comments',$res) && is_array($res["comments"])) {
+      $dwentry["proposal"] = $res["proposal"];
+      foreach($res["comments"] as $comment) {
+        if ($comment !== false && is_array($comment) && array_key_exists('id',$comment) && is_string($comment["id"])
+          && array_key_exists('username',$comment) && is_string($comment["username"])
+          && array_key_exists('date',$comment) && is_string($comment["date"])
+          && array_key_exists('order',$comment) && is_int($comment["order"])
+          && array_key_exists('level',$comment)
+          && array_key_exists('recently_posted',$comment) && is_bool($comment["recently_posted"])
+          && array_key_exists('posted_by_owner',$comment) && is_bool($comment["posted_by_owner"])
+          && array_key_exists('reply_url',$comment) && is_string($comment["reply_url"])
+          && array_key_exists('content',$comment) && is_string($comment["content"])
+           ) {
+          if (preg_match("/^[0-9a-f]{32}$/s", $comment["id"]) === 1) {
+            if (!filter_var($comment["reply_url"], FILTER_VALIDATE_URL) === false) {
+              $dwentry["comments"][] = $comment;
+              echo ".";
+            }
+            else {
+              echo "u";
+            }
+          }
+          else {
+            echo "i";
+          }
+        }
+        else {
+          echo "e";
+        }
+      }
+      echo " OK (".count($dwentry["comments"])." comments)\n";
+    }
+    else {
+      echo "Failed (JSON)\n";
+    }
+  }
+  else {
+    echo "Failed (GET)\n";
+  }
+}
+
 xecho("Submitting to web service: ");
-$payload = array("thirdparties" => $tp);
+$payload = array("thirdparties" => $tp,
+                 "dashwhale" => $dw);
 $content = dmn_cmd_post('/thirdparties',$payload,$response);
 var_dump($content);
 if (strlen($content) > 0) {
