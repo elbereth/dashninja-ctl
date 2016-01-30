@@ -19,7 +19,7 @@
 
  */
 
-DEFINE('DMN_VERSION','2.2.0');
+DEFINE('DMN_VERSION','2.2.1');
 
 xecho('dmnthirdpartiesfetch v'.DMN_VERSION."\n");
 
@@ -335,6 +335,7 @@ foreach($proposals as $proposal) {
           echo "e";
         }
       }
+      $dw[] = $dwentry;
       echo " OK (".count($dwentry["comments"])." comments)\n";
     }
     else {
