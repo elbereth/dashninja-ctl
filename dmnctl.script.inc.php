@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.4.1');
+DEFINE('DMN_VERSION','2.4.2');
 
 function dmnpidcmp($a, $b)
 {
@@ -643,6 +643,29 @@ function dmn_startstop($dmnpid,$todo,$testnet = false,$nodetype = 'masternode',$
 
 }
 
+// Restart frozen nodes
+function dmn_restartfrozen($dmnpid) {
+
+  xecho("Restarting ");
+  echo count($dmnpid)." frozen nodes:\n";
+
+  $commands = array();
+  foreach($dmnpid as $nodenum => $node) {
+    $uname = $node['uname'];
+    $commands[] = array("status" => 0,
+        "nodenum" => $nodenum,
+        "cmd" => "$uname restart ".$node['dashd'],
+        "exitcode" => -1,
+        "output" => '');
+  }
+  dmn_ctlstartstop($commands);
+
+  foreach($commands as $command) {
+    echo $command['output'];
+  }
+
+}
+
 // Display masternode status and submit statistics to private API
 function dmn_status($dmnpid) {
 
@@ -952,6 +975,8 @@ function dmn_status($dmnpid) {
   $mnvoteslistfinal = array();
   $mnbudgetvotes = array(array(),array());
 
+  $dmnpidtorestart = array();
+
   // Go through all nodes
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
 
@@ -1258,6 +1283,7 @@ function dmn_status($dmnpid) {
           $countrycode = '__';
         }
         $processstatus = 'notresponding';
+        $dmnpidtorestart[$dmnnum] = $dmnpidinfo;
         echo "NR ".str_repeat(" ",96)."$ip\n";
       }
       else {
@@ -1631,6 +1657,10 @@ function dmn_status($dmnpid) {
     else {
       echo "Error (empty result) [HTTP CODE ".$response['http_code']."]\n";
     }
+  }
+
+  if (count($dmnpidtorestart)>0) {
+    dmn_restartfrozen($dmnpidtorestart);
   }
 
 }
