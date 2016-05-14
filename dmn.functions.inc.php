@@ -59,6 +59,9 @@ function dmn_getpid($uname,$testnet = false) {
   else if (file_exists(DMN_PID_PATH.$uname."/.dash$testinfo/dashd.pid") !== FALSE) {
     $res = trim(file_get_contents(DMN_PID_PATH.$uname."/.dash$testinfo/dashd.pid"));
   }
+  else if (file_exists(DMN_PID_PATH.$uname."/.dash$testinfo/dash.pid") !== FALSE) {
+    $res = trim(file_get_contents(DMN_PID_PATH.$uname."/.dash$testinfo/dash.pid"));
+  }
   else {
     $res = false;
   }
