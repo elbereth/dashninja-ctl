@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.0.1');
+define('DMN_VERSION','1.1.0');
 
 xecho('dmnblockparser v'.DMN_VERSION."\n");
 
@@ -175,9 +175,8 @@ else {
   }
   die(214);
 }
-var_dump($mnsuperblocks);
 
-function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, &$bhws, &$bws, &$btarchive, &$blockarchive, &$txarchive) {
+function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, &$bhws, &$bws, &$btarchive, &$blockarchive, &$txarchive, &$mparchive) {
 
   xecho("==> Processing $uname: ");
   if (!is_dir("/dev/shm/$uname")) {
@@ -313,9 +312,27 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
 
   if ((count($blockfiles) > 0) && (count($txfiles) > 0)) {
     xecho(" Parsing blocks:\n");
+    $mpdscount = array();
     foreach($blockfiles as $blockfile) {
       $blockid = substr($blockfile,6,strlen($blockfile)-11);
       xecho("  Block $blockid: ");
+      if (file_exists("/dev/shm/$uname/mempool.$blockid.json")) {
+        $mpdscount[$blockid] = 0;
+        $mempool = json_decode(file_get_contents("/dev/shm/$uname/mempool.$blockid.json"),true);
+        if (($mempool !== false) && isset($mempool) && (count($mempool) > 0)) {
+          $mparchive["/dev/shm/$uname/mempool.$blockid.json"] = DMN_BLOCKPARSER_ARCHIVE.$uname.'/'."mempool.$blockid.json";
+          foreach($mempool as $txid => $txhash) {
+            if (file_exists("/dev/shm/$uname/tx/mempooltx.$blockid.$txhash.json")) {
+              $txarchive["/dev/shm/$uname/tx/mempooltx.$blockid.$txhash.json"] = DMN_BLOCKPARSER_ARCHIVE . $uname . '/tx/' . "mempooltx.$blockid.$txhash.json";
+              $tx = json_decode(file_get_contents("/dev/shm/$uname/tx/mempooltx.$blockid.$txhash.json"), true);
+              $typeinfo = dmn_gettxtype($tx);
+              if ($typeinfo['ds']) {
+                $mpdscount[$blockid]++;
+              }
+            }
+          }
+        }
+      }
       $block = json_decode(file_get_contents("/dev/shm/$uname/$blockfile"),true);
       if (($block !== false) && isset($block) && array_key_exists('height',$block)) {
         if ($block['height'] == $blockid) {
@@ -333,11 +350,16 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
           }
           $blockarchive["/dev/shm/$uname/$blockfile"] = DMN_BLOCKPARSER_ARCHIVE.$uname.'/'.$blockfile;
           $gentx = false;
+          $dscount = 0;
           foreach($block['tx'] as $txid => $txhash) {
             if (in_array("transaction.$txhash.json",$txfiles)) {
               $txarchive["/dev/shm/$uname/tx/transaction.$txhash.json"] = DMN_BLOCKPARSER_ARCHIVE.$uname.'/tx/'."transaction.$txhash.json";
+              $tx = json_decode(file_get_contents("/dev/shm/$uname/tx/transaction.$txhash.json"),true);
+              $typeinfo = dmn_gettxtype($tx);
+              if ($typeinfo['ds']) {
+                $dscount++;
+              }
               if (!$gentx) {
-                $tx = json_decode(file_get_contents("/dev/shm/$uname/tx/transaction.$txhash.json"),true);
                 if (array_key_exists('vin',$tx) && is_array($tx['vin']) && (count($tx['vin']) == 1) && is_array($tx['vin'][0]) && array_key_exists('coinbase',$tx['vin'][0])) {
                   $gentx = true;
                   $outcheck = array();
@@ -446,8 +468,10 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                         "BlockMNPayeeDonation" => $mnpayeedonation,
                         "IsSuperblock" => $issuperblock,
                         "SuperblockBudgetName" => $superblockbudgetname,
+                        "BlockDarkSendTXCount" => 0,
+                        "MemPoolDarkSendTXCount" => 0,
                         );
-                    echo "$mnpayee ($mnpaid DASH)\n";
+                    echo "$mnpayee ($mnpaid DASH) - ";
                   }
                   else {
                     $bws[] = array("BlockTestNet" => $testnet,
@@ -464,13 +488,24 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                                    "BlockMNPayeeDonation" => 0,
                         "IsSuperblock" => $issuperblock,
                         "SuperblockBudgetName" => $superblockbudgetname,
+                        "BlockDarkSendTXCount" => 0,
+                        "MemPoolDarkSendTXCount" => 0,
                         );
-                    echo "Unpaid\n";
+                    echo "Unpaid - ";
                   }
                 }
               }
             }
           }
+          if (array_key_exists($blockid, $mpdscount)) {
+            $mpcount = $mpdscount[$blockid];
+          }
+          else {
+            $mpcount = 0;
+          }
+          echo "DS=".$dscount."/".$mpcount."\n";
+          $bws[max(array_keys($bws))]["BlockDarkSendTXCount"] = $dscount;
+          $bws[max(array_keys($bws))]["MemPoolDarkSendTXCount"] = $mpcount;
           if ($gentx === false) {
             echo "No generation TX found!\n";
           }
@@ -490,15 +525,43 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
   return true;
 }
 
+function dmn_gettxtype($tx) {
+
+  // TODO: InstantX/InstantSend
+  $isix = false;
+
+  // DarkSend/PrivacyProtect
+  $denoms = array(0.100001,
+                  1.00001,
+                 10.0001,
+                100.001);
+  $isds = is_array($tx) && array_key_exists('vout',$tx) && is_array($tx["vout"]) && (count($tx['vout']) > 1);
+  $dscount = 0;
+  foreach($tx['vout'] as $voutid => $vout) {
+    if (array_key_exists('value',$vout) && array_key_exists('scriptPubKey',$vout) && is_array($vout['scriptPubKey']) && array_key_exists('addresses',$vout['scriptPubKey']) && (count($vout['scriptPubKey']['addresses']) == 1)) {
+      $voutds = in_array($vout["value"],$denoms);
+      if ($voutds) {
+        $isds &= $voutds;
+        $dscount++;
+      }
+    }
+  }
+
+  return array("ix" => $isix,
+               "ds" => $isds && ($dscount >= 2));
+
+}
+
 $btarchive = array();
 $blockarchive = array();
 $txarchive = array();
+$mparchive = array();
 
 $bws = array();
 $bhws = array();
 
 foreach($nodes as $node) {
-  dmn_blockparse($node['NodeName'], $node['NodeTestNet'], $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, $bhws, $bws, $btarchive, $blockarchive, $txarchive);
+  dmn_blockparse($node['NodeName'], $node['NodeTestNet'], $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, $bhws, $bws, $btarchive, $blockarchive, $txarchive, $mparchive);
 }
 
 if ((count($bhws) > 0) || (count($bws) > 0)) {
@@ -544,6 +607,12 @@ if ((count($blockarchive)+count($btarchive)) > 0)  {
       rename($filename,$archivename);
     }
     echo count($btarchive)." block template files... ";
+  }
+  if (count($mparchive) > 0) {
+    foreach($mparchive as $filename => $archivename) {
+      rename($filename,$archivename);
+    }
+    echo count($mparchive)." mempool files... ";
   }
   echo "\n";
 }

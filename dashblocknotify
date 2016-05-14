@@ -24,7 +24,7 @@ require_once('EasyDash-PHP/easydash.php');
 require_once('DashConfig.class.php');
 require_once('dashblocknotify.config.inc.php');
 
-define('DASHBLOCKNOTIFY','0.6.0-beta');
+define('DASHBLOCKNOTIFY','0.7.0-beta');
 
 function xecho($line) {
   echo date('Y-m-d H:i:s').' - '.$line;
@@ -72,6 +72,7 @@ else {
 
 $retrieveblock = $unamelist[$uname]['block'];
 $retrieveblocktemplate = $unamelist[$uname]['bt'];
+$retrievemempool = $unamelist[$uname]['mempool'];
 
 if ($retrieveblocktemplate) {
   if ($verbose) {
@@ -156,6 +157,59 @@ if ($retrieveblock) {
         $txraw = $rpc->getrawtransaction($txhash, 1);
         if ($txraw !== false) {
           file_put_contents("/dev/shm/$uname/tx/transaction.$txhash.json",json_encode($txraw));
+          if ($verbose) {
+            echo "OK\n";
+          }
+        }
+        else {
+          if ($verbose) {
+            echo "Failed\n";
+          }
+          usleep(250000);
+        }
+      } while (($txraw === false) && ($try < 4));
+    }
+    rename($tmpfilename,$rename);
+  }
+  else {
+    if ($verbose) {
+      echo "Error during RPC call\n";
+    }
+    die(4);
+  }
+}
+
+if ($retrievemempool) {
+  if ($verbose) {
+    xecho("Retrieving mempool information: ");
+  }
+  $mptxes = $rpc->getrawmempool();
+  if ($mptxes !== false) {
+    if (!is_dir("/dev/shm/$uname")) {
+      mkdir("/dev/shm/$uname",0700,true);
+    }
+    if (!is_dir("/dev/shm/$uname/tx")) {
+      mkdir("/dev/shm/$uname/tx",0700,true);
+    }
+    $tmpfilename = tempnam("/dev/shm","dashblocknotify.$uname");
+    file_put_contents($tmpfilename,json_encode($mptxes));
+    $rename = "/dev/shm/$uname/mempool.".$blockjson['height'].".json";
+    if ($verbose) {
+      echo "OK\n";
+    }
+    foreach($mptxes as $id => $txhash) {
+      $try = 0;
+      do {
+        $try++;
+        if ($verbose) {
+          xecho("Retrieving tx #$id ($txhash): ");
+          if ($try > 1) {
+            echo "Retry ($try): ";
+          }
+        }
+        $txraw = $rpc->getrawtransaction($txhash, 1);
+        if ($txraw !== false) {
+          file_put_contents("/dev/shm/$uname/tx/mempooltx.".$blockjson['height'].".$txhash.json",json_encode($txraw));
           if ($verbose) {
             echo "OK\n";
           }
