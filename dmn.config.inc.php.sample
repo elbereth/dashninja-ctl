@@ -46,6 +46,11 @@ DEFINE('DMN_STOPWAIT',10);
 DEFINE('DMN_NICELEVEL_MAIN',10);
 DEFINE('DMN_NICELEVEL_TEST',18);
 
+// How many successive times a node can be notresponding before force-stop or restart
+DEFINE('DMN_NRCOUNT',3);
+// Where to store the counter file
+DEFINE('DMN_NRCOUNTDIR','/tmp/');
+
 // Parallel threads (for start-stop and RPC commands)
 DEFINE('DMN_THREADS_MAX',8);
 

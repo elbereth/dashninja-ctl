@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.4.2');
+DEFINE('DMN_VERSION','2.4.4');
 
 function dmnpidcmp($a, $b)
 {
@@ -114,6 +114,7 @@ function dmn_getpids($nodes,$isstatus = false) {
                             'testnet' => ($node['NodeTestNet'] == 1),
                             'dashd' => $node['VersionPath'],
                             'currentbin' => '',
+                            'keeprunning' => ($node['KeepRunning'] == 1),
                             'keepuptodate' => ($node['KeepUpToDate'] == 1),
                             'versionraw' => $node['VersionRaw'],
                             'versiondisplay' => $node['VersionDisplay'],
@@ -643,6 +644,36 @@ function dmn_startstop($dmnpid,$todo,$testnet = false,$nodetype = 'masternode',$
 
 }
 
+// Start all KeepRunning nodes
+// If $testnet is true then only start testnet (else start mainnet)
+function dmn_startkeeprunning($dmnpid) {
+
+  $nodes = array();
+  foreach($dmnpid as $node) {
+    if ($node['keeprunning']) {
+      $nodes[] = $node;
+    }
+  }
+
+  xecho("Keep Running ".count($nodes)." nodes:\n");
+
+  $commands = array();
+  foreach($nodes as $nodenum => $node) {
+    $uname = $node['uname'];
+    $commands[] = array("status" => 0,
+        "nodenum" => $nodenum,
+        "cmd" => "$uname start ".$node['dashd'],
+        "exitcode" => -1,
+        "output" => '');
+  }
+  dmn_ctlstartstop($commands);
+
+  foreach($commands as $command) {
+    echo $command['output'];
+  }
+
+}
+
 // Restart frozen nodes
 function dmn_restartfrozen($dmnpid) {
 
@@ -652,11 +683,26 @@ function dmn_restartfrozen($dmnpid) {
   $commands = array();
   foreach($dmnpid as $nodenum => $node) {
     $uname = $node['uname'];
-    $commands[] = array("status" => 0,
-        "nodenum" => $nodenum,
-        "cmd" => "$uname restart ".$node['dashd'],
-        "exitcode" => -1,
-        "output" => '');
+    if (file_exists("/tmp/dmnctl-NR-$uname-counter")) {
+      $counter = intval(file_get_contents("/tmp/dmnctl-NR-$uname-counter"));
+      $counter++;
+    }
+    else {
+      $counter = 1;
+    }
+    file_put_contents("/tmp/dmnctl-NR-$uname-counter",$counter);
+    if ($counter >= DMN_NRCOUNT) {
+      if ($dmnpid["keeprunning"]) {
+        $command = "restart";
+      } else {
+        $command = "stop";
+      }
+      $commands[] = array("status" => 0,
+          "nodenum" => $nodenum,
+          "cmd" => "$uname $command " . $node['dashd'],
+          "exitcode" => -1,
+          "output" => '');
+    }
   }
   dmn_ctlstartstop($commands);
 
@@ -1054,6 +1100,11 @@ function dmn_status($dmnpid) {
         // Our node is active
         $daemonactive[] = $uname;
 
+        // Remove the notresponding counter file
+        if (file_exists(DMN_NRCOUNTDIR."dmnctl-NR-$uname-counter")) {
+          unlink(DMN_NRCOUNTDIR."dmnctl-NR-$uname-counter");
+        }
+
         // Retrieve the IP from the node
         $ip = dmn_getip($dmnpidinfo['pid'],$uname);
         $dmnip = $ip;
@@ -1292,6 +1343,10 @@ function dmn_status($dmnpid) {
       }
     }
     elseif ($dmnenabled) {
+      // Remove the notresponding counter file
+      if (file_exists(DMN_NRCOUNTDIR."dmnctl-NR-$uname-counter")) {
+        unlink(DMN_NRCOUNTDIR."dmnctl-NR-$uname-counter");
+      }
       $iponly = $dmnpidinfo['conf']->getconfig('bind');
       $ip = "$iponly:$port";
       $country = dmn_getcountry($ip,$countrycode);
@@ -1303,6 +1358,10 @@ function dmn_status($dmnpid) {
       echo "NS ".str_repeat(" ",96)."$ip\n";
     }
     else {
+      // Remove the notresponding counter file
+      if (file_exists(DMN_NRCOUNTDIR."dmnctl-NR-$uname-counter")) {
+        unlink(DMN_NRCOUNTDIR."dmnctl-NR-$uname-counter");
+      }
       $processstatus = 'disabled';
       echo "--\n";
     }
@@ -1700,6 +1759,8 @@ if ($argc > 1) {
 
   $dmnpidstatus = dmn_getpids($nodes,(strcasecmp($argv[1],'status') == 0));
   $dmnpid = $dmnpidstatus;
+  dmn_startkeeprunning($dmnpid);
+
 }
 
 if ($argc == 1) {

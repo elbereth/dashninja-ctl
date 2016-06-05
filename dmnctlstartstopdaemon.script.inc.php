@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.1.0');
+define('DMN_VERSION','1.2.3');
 
 // Start the masternodes
 function dmn_start($uname,$conf,$dashd,$extra="") {
@@ -45,21 +45,26 @@ function dmn_start($uname,$conf,$dashd,$extra="") {
       else {
         $nice = DMN_NICELEVEL_MAIN;
       }
-      exec("start-stop-daemon -S -c $RUNASUID:$RUNASGID -N ".$nice." -x ".$dashd." -u $RUNASUID -a ".$dashd." -q -b -- -daemon $extra");
-      usleep(250000);
-      $waitcount = 0;
-      while ((!dmn_checkpid(dmn_getpid($uname,$testnet))) && ($waitcount < DMN_STOPWAIT)) {
-        usleep(1000000);
-        $waitcount++;
-        echo ".";
-      }
-      if (dmn_checkpid(dmn_getpid($uname,$testnet))) {
-        echo "Started!";
-        $res = true;
-      }
-      else {
-        echo "Could not start!";
-        $res = false;
+      $trycount = 0;
+      $res = false;
+      while ((!$res) && (!dmn_checkpid(dmn_getpid($uname,$testnet))) && ($trycount < 3)) {
+        echo "T$trycount.";
+        exec("/sbin/start-stop-daemon -S -c $RUNASUID:$RUNASGID -N " . $nice . " -x " . $dashd . " -u $RUNASUID -a " . $dashd . " -q -b -- -daemon $extra");
+        usleep(250000);
+        $waitcount = 0;
+        while ((!dmn_checkpid(dmn_getpid($uname, $testnet))) && ($waitcount < DMN_STOPWAIT)) {
+          usleep(1000000);
+          $waitcount++;
+          echo ".";
+        }
+        if (dmn_checkpid(dmn_getpid($uname, $testnet))) {
+          echo "Started!";
+          $res = true;
+        }
+        $trycount++;
+        if ($trycount == 3) {
+          echo "Could not start!";
+        };
       }
     }
     else {
