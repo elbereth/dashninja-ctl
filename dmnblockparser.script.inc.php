@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.1.0');
+define('DMN_VERSION','1.1.2');
 
 xecho('dmnblockparser v'.DMN_VERSION."\n");
 
@@ -222,9 +222,11 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
     echo "Folder not found\n";
   }
 
-  xecho(" Retrieving available block files: ");
+  xecho(" Retrieving available block/mempool files: ");
   $txfiles = array();
   $blockfiles = array();
+  $mpfiles = array();
+  $mptxfiles = array();
   if ($canparseblocks) {
     if ($handle = opendir("/dev/shm/$uname/")) {
       while (false !== ($entry = readdir($handle))) {
@@ -232,15 +234,18 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
           if ((strlen($entry) > 11) && (substr($entry,0,6) == 'block.') && (substr($entry,-5) == '.json')) {
             $blockfiles[] = $entry;
           }
+          if ((strlen($entry) > 13) && (substr($entry,0,8) == 'mempool.') && (substr($entry,-5) == '.json')) {
+            $mpfiles[] = $entry;
+          }
         }
       }
       closedir($handle);
     }
-    if (count($blockfiles) == 0) {
+    if ((count($blockfiles) == 0) && (count($mpfiles) == 0)) {
       echo "None found\n";
     }
     else {
-      echo "OK (".count($blockfiles)." files)\n";
+      echo "OK (".count($blockfiles)."+".count($mpfiles)." files)\n";
     }
 
     xecho(" Retrieving available transaction files: ");
@@ -250,18 +255,23 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
           if ((strlen($entry) > 17) && (substr($entry,0,12) == 'transaction.') && (substr($entry,-5) == '.json')) {
             $txfiles[] = $entry;
           }
+          if ((strlen($entry) > 17) && (substr($entry,0,10) == 'mempooltx.') && (substr($entry,-5) == '.json')) {
+            $mptxfiles[] = $entry;
+          }
         }
       }
       closedir($handle);
     }
-    if (count($txfiles) == 0) {
+    if ((count($txfiles) == 0) && (count($mptxfiles) == 0)) {
       echo "None found\n";
     }
     else {
-      echo "OK (".count($txfiles)." files)\n";
+      echo "OK (".count($txfiles)."+".count($mptxfiles)." files)\n";
     }
     sort($blockfiles);
     sort($txfiles);
+    sort($mptxfiles);
+    sort($mpfiles);
   }
   else {
     echo "Folder not found\n";
@@ -591,26 +601,52 @@ if ((count($bhws) > 0) || (count($bws) > 0)) {
 }
 
 if ((count($blockarchive)+count($btarchive)) > 0)  {
-  xecho("Archiving treated files: ");
+  if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+    xecho("Archiving ");
+  }
+  else {
+    xecho("Deleting ");
+  }
+  echo("treated files: ");
   if (count($blockarchive) > 0) {
     foreach($blockarchive as $filename => $archivename) {
-      rename($filename,$archivename);
+      if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+        rename($filename, $archivename);
+      }
+      else {
+        unlink($filename);
+      }
     }
     echo count($blockarchive)." block files... ";
     foreach($txarchive as $filename => $archivename) {
-      rename($filename,$archivename);
+      if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+        rename($filename, $archivename);
+      }
+      else {
+        unlink($filename);
+      }
     }
     echo count($txarchive)." transaction files... ";
   }
   if (count($btarchive) > 0) {
     foreach($btarchive as $filename => $archivename) {
-      rename($filename,$archivename);
+      if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+        rename($filename, $archivename);
+      }
+      else {
+        unlink($filename);
+      }
     }
     echo count($btarchive)." block template files... ";
   }
   if (count($mparchive) > 0) {
     foreach($mparchive as $filename => $archivename) {
-      rename($filename,$archivename);
+      if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+        rename($filename, $archivename);
+      }
+      else {
+        unlink($filename);
+      }
     }
     echo count($mparchive)." mempool files... ";
   }

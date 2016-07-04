@@ -75,6 +75,8 @@ DEFINE('DMN_BALANCE_URL_TESTNET','http://127.0.0.1:17890/chain/Dash/q/addressbal
 DEFINE('DMN_BALANCE_URL_MAINNET','http://127.0.0.1:7890/chain/Dash/q/addressbalance/%%p%%');
 
 // Block Parser specifics
+//  Activate archival (if disabled files are deleted once consumed)
+DEFINE('DMN_BLOCKPARSER_ARCHIVE_DO',false);
 //  Folder to archive json files (username subfolders will be created)
 DEFINE('DMN_BLOCKPARSER_ARCHIVE','/home/dash-blkhist/archive/current/');
 //  Folder to archive longterm (multiple json files together per username)
