@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.4.4');
+DEFINE('DMN_VERSION','2.4.5');
 
 function dmnpidcmp($a, $b)
 {
@@ -677,10 +677,11 @@ function dmn_startkeeprunning($dmnpid) {
 // Restart frozen nodes
 function dmn_restartfrozen($dmnpid) {
 
-  xecho("Restarting ");
+  xecho("Dealing with ");
   echo count($dmnpid)." frozen nodes:\n";
 
   $commands = array();
+  $commands2 = array();
   foreach($dmnpid as $nodenum => $node) {
     $uname = $node['uname'];
     if (file_exists("/tmp/dmnctl-NR-$uname-counter")) {
@@ -692,22 +693,29 @@ function dmn_restartfrozen($dmnpid) {
     }
     file_put_contents("/tmp/dmnctl-NR-$uname-counter",$counter);
     if ($counter >= DMN_NRCOUNT) {
-      if ($dmnpid["keeprunning"]) {
-        $command = "restart";
-      } else {
-        $command = "stop";
-      }
       $commands[] = array("status" => 0,
           "nodenum" => $nodenum,
-          "cmd" => "$uname $command " . $node['dashd'],
+          "cmd" => "$uname stop " . $node['dashd'],
           "exitcode" => -1,
           "output" => '');
+      if ($node["keeprunning"]) {
+        $commands2[] = array("status" => 0,
+            "nodenum" => $nodenum,
+            "cmd" => "$uname start " . $node['dashd'],
+            "exitcode" => -1,
+            "output" => '');
+      }
     }
   }
   dmn_ctlstartstop($commands);
-
   foreach($commands as $command) {
     echo $command['output'];
+  }
+  if (count($commands2) > 0) {
+    dmn_ctlstartstop($commands2);
+    foreach ($commands2 as $command) {
+      echo $command['output'];
+    }
   }
 
 }
@@ -1254,19 +1262,21 @@ function dmn_status($dmnpid) {
           }
 
           // Parse masternode final budget
-          foreach($dmnpidinfo['mnbudgetfinal'] as $mnbudgetid => $mnbudgetdata) {
-            if (array_key_exists($dashdinfo['testnet']."-".$mnbudgetdata["Hash"], $mnbudgetfinal) &&
-                array_key_exists("VoteCount",$mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]])) {
-              if (($mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["VoteCount"])<($mnbudgetdata["VoteCount"])) {
-                $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
-                $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetName'] = $mnbudgetid;
-                $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
+          if (is_array($dmnpidinfo['mnbudgetfinal'])) {
+            foreach ($dmnpidinfo['mnbudgetfinal'] as $mnbudgetid => $mnbudgetdata) {
+              if (array_key_exists($dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"], $mnbudgetfinal) &&
+                  array_key_exists("VoteCount", $mnbudgetfinal[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]])
+              ) {
+                if (($mnbudgetfinal[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]["VoteCount"]) < ($mnbudgetdata["VoteCount"])) {
+                  $mnbudgetfinal[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]] = $mnbudgetdata;
+                  $mnbudgetfinal[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]['BudgetName'] = $mnbudgetid;
+                  $mnbudgetfinal[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
+                }
+              } else {
+                $mnbudgetfinal[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]] = $mnbudgetdata;
+                $mnbudgetfinal[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]['BudgetName'] = $mnbudgetid;
+                $mnbudgetfinal[$dashdinfo['testnet'] . "-" . $mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
               }
-            }
-            else {
-              $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]] = $mnbudgetdata;
-              $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]['BudgetName'] = $mnbudgetid;
-              $mnbudgetfinal[$dashdinfo['testnet']."-".$mnbudgetdata["Hash"]]["BudgetTesnet"] = $dashdinfo['testnet'];
             }
           }
 
