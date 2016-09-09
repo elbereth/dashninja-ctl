@@ -19,7 +19,7 @@
 
  */
 
-DEFINE('DMN_VERSION','2.2.2');
+DEFINE('DMN_VERSION','2.3.0');
 
 xecho('dmnthirdpartiesfetch v'.DMN_VERSION."\n");
 
@@ -131,7 +131,7 @@ else {
 }
 */
 
-xecho("Fetching from Bitfinex: ");
+/*xecho("Fetching from Bitfinex: ");
 $res = file_get_contents('https://api.bitfinex.com/v1/pubticker/btcusd');
 if ($res !== false) {
   $res = json_decode($res,true);
@@ -141,6 +141,26 @@ if ($res !== false) {
         "LastUpdate" => intval($res['timestamp']),
         "Source" => "bitfinex");
     echo "OK (".$res['last_price']." / $tbstamp)\n";
+  }
+  else {
+    echo "Failed (JSON)\n";
+  }
+}
+else {
+  echo "Failed (GET)\n";
+}*/
+
+xecho("Fetching from itBit: ");
+$res = file_get_contents('https://api.itbit.com/v1/markets/XBTUSD/ticker');
+if ($res !== false) {
+  $res = json_decode($res,true);
+  if (($res !== false) && is_array($res) && array_key_exists('pair',$res) && ($res["pair"] == "XBTUSD") && array_key_exists('lastPrice',$res) && array_key_exists('serverTimeUTC',$res)) {
+    $timestamp = strtotime($res['serverTimeUTC']);
+    $tbstamp = date('Y-m-d H:i:s',$timestamp);
+    $tp["usdbtc"] = array("StatValue" => floatval($res["lastPrice"]),
+        "LastUpdate" => intval($timestamp),
+        "Source" => "itbit");
+    echo "OK (".$res['lastPrice']." / $tbstamp)\n";
   }
   else {
     echo "Failed (JSON)\n";
@@ -273,8 +293,8 @@ else {
 
 $dw = array();
 
-xecho("Fetching budgets list from DashWhale: ");
-$res = file_get_contents('https://www.dashwhale.org/api/v1/budget?partner='.DMN_DASHWHALE_PARTNERID);
+xecho("Fetching budgets list from DashCentral: ");
+$res = file_get_contents('https://www.dashcentral.org/api/v1/budget?partner='.DMN_DASHWHALE_PARTNERID);
 $proposals = array();
 if ($res !== false) {
   $res = json_decode($res,true);
@@ -297,8 +317,8 @@ else {
 }
 
 foreach($proposals as $proposal) {
-  xecho("Fetching budget $proposal from DashWhale: ");
-  $res = file_get_contents('https://www.dashwhale.org/api/v1/proposal?partner='.DMN_DASHWHALE_PARTNERID.'&hash='.$proposal);
+  xecho("Fetching budget $proposal from DashCentral: ");
+  $res = file_get_contents('https://www.dashcentral.org/api/v1/proposal?partner='.DMN_DASHWHALE_PARTNERID.'&hash='.$proposal);
   $dwentry = array("proposal" => array(),
                    "comments" => array());
   if ($res !== false) {
