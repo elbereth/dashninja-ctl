@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.0.2');
+define('DMN_VERSION','1.1.0');
 
 xecho('dmnblockdegapper v'.DMN_VERSION."\n");
 
@@ -56,74 +56,86 @@ else {
   die(201);
 }
 
-xecho('Retrieving last month block: ');
-$result = dmn_api_get('/blocks',array("interval"=>"P1M"),$response);
-if ($response['http_code'] == 200) {
-  echo "Fetched...";
-  $blocks = json_decode($result,true);
-  if ($blocks=== false) {
-    echo " Failed to JSON decode!\n";
-    die(200);
+for ($x = 0; $x < 2; $x++) {
+  if ($x == 0) {
+    $display = "mainnet";
+    $uname = 'p2pool';
   }
-  elseif (!is_array($blocks) || !array_key_exists('data',$blocks) || !is_array($blocks['data']) || !array_key_exists('blocks',$blocks['data']) || !is_array($blocks['data']['blocks'])) {
-    echo " Incorrect data!\n";
-    die(202);
+  else {
+    $display = "testnet";
+    $uname = 'tp2pool';
   }
-  $blocks = $blocks['data']['blocks'];
-  echo " OK (".count($blocks)." entries)\n";
-}
-else {
-  echo "Failed [".$response['http_code']."]\n";
-  if ($response['http_code'] != 500) {
-    $result = json_decode($result,true);
-    if ($result !== false) {
-      foreach($result['messages'] as $num => $msg) {
-        xecho("Error #$num: $msg\n");
+
+  xecho('Retrieving last month block for '.$display.': ');
+  $result = dmn_api_get('/blocks',array("interval"=>"P1M",'testnet'=>$x),$response);
+  if ($response['http_code'] == 200) {
+    echo "Fetched...";
+    $blocks = json_decode($result,true);
+    if ($blocks=== false) {
+      echo " Failed to JSON decode!\n";
+      die(200);
+    }
+    elseif (!is_array($blocks) || !array_key_exists('data',$blocks) || !is_array($blocks['data']) || !array_key_exists('blocks',$blocks['data']) || !is_array($blocks['data']['blocks'])) {
+      echo " Incorrect data!\n";
+      die(202);
+    }
+    $blocks = $blocks['data']['blocks'];
+    echo " OK (".count($blocks)." entries)\n";
+  }
+  else {
+    echo "Failed [".$response['http_code']."]\n";
+    if ($response['http_code'] != 500) {
+      $result = json_decode($result,true);
+      if ($result !== false) {
+        foreach($result['messages'] as $num => $msg) {
+          xecho("Error #$num: $msg\n");
+        }
       }
     }
+    die(201);
   }
-  die(201);
-}
 
-xecho("Finding gaps:\n");
+  xecho("Finding gaps on $display:\n");
 
-$prevblock = -1;
-$gaps = array();
-foreach($blocks as $blockindex => $block) {
-  if ($prevblock == -1) {
+  $prevblock = -1;
+  $gaps = array();
+  foreach($blocks as $blockindex => $block) {
+    if ($prevblock == -1) {
+    }
+    elseif (($prevblock-1) != $block['BlockId']) {
+      if (($prevblock - $block['BlockId']) > 2) {
+        xecho("Gap found, missing blocks ".($block['BlockId']+1)." to ".($prevblock-1)."\n");
+        $gaps[] = ($block['BlockId']+1)." ".($prevblock-1);
+      }
+      else {
+        xecho("Gap found, missing block ".($prevblock-1)."\n");
+        $gaps[] = ($prevblock-1);
+      }
+
+    }
+    $prevblock = $block['BlockId'];
   }
-  elseif (($prevblock-1) != $block['BlockId']) {
-    if (($prevblock - $block['BlockId']) > 2) {
-      xecho("Gap found, missing blocks ".($block['BlockId']+1)." to ".($prevblock-1)."\n");
-      $gaps[] = ($block['BlockId']+1)." ".($prevblock-1);
-    }
-    else {
-      xecho("Gap found, missing block ".($prevblock-1)."\n");
-      $gaps[] = ($prevblock-1);
-    }
 
+  if (count($gaps) == 0) {
+    xecho('No gaps found! (Yeah \o/)'."\n");
   }
-  $prevblock = $block['BlockId'];
-}
+  else {
+    xecho("De-gapping (".count($gaps)." gaps):\n");
+    foreach($gaps as $id => $gap) {
+      xecho(sprintf("#%'.03d",$id+1)." ($gap): ");
+      $output = array();
+      $result = 0;
+      $lastline = exec(DMN_DIR."/dashblockretrieve $uname $gap",$output,$result);
+      if ($result == 0) {
+        echo "OK";
+      }
+      else {
+        echo "Error ($lastline)";
+      }
+      echo "\n";
+    }
+  }
 
-if (count($gaps) == 0) {
-  xecho('No gaps found! (Yeah \o/)'."\n");
-}
-else {
-  xecho("De-gapping (".count($gaps)." gaps):\n");
-  foreach($gaps as $id => $gap) {
-    xecho(sprintf("#%'.03d",$id+1)." ($gap): ");
-    $output = array();
-    $result = 0;
-    $lastline = exec(DMN_DIR."/dashblockretrieve p2pool $gap",$output,$result);
-    if ($result == 0) {
-      echo "OK";
-    }
-    else {
-      echo "Error ($lastline)";
-    }
-    echo "\n";
-  }
 }
 
 ?>
