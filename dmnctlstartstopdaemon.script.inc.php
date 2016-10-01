@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.2.3');
+define('DMN_VERSION','1.2.4');
 
 // Start the masternodes
 function dmn_start($uname,$conf,$dashd,$extra="") {
@@ -93,7 +93,7 @@ function dmn_stop($uname,$conf) {
 
   if ($pid !== false) {
     $tmp = $rpc->stop();
-    if (($rpc->response['result'] != "DarkCoin server stopping") && ($rpc->response['result'] != "Dash server stopping")) {
+    if (($rpc->response['result'] != "DarkCoin server stopping") && ($rpc->response['result'] != "Dash server stopping") && ($rpc->response['result'] != "Dash Core server stopping")) {
       echo "Unexpected daemon answer (".$rpc->response['result'].") ";
     }
     usleep(250000);

@@ -69,7 +69,10 @@ class DashConfig {
 
   function __construct($uname) {
 
-    if (file_exists('/home/'.$uname.'/.dash/dash.conf')) {
+    if (file_exists('/home/'.$uname.'/.dashcore/dash.conf')) {
+      $this->configfilename = '/home/'.$uname.'/.dashcore/dash.conf';
+    }
+    elseif (file_exists('/home/'.$uname.'/.dash/dash.conf')) {
       $this->configfilename = '/home/'.$uname.'/.dash/dash.conf';
     }
     else {

@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.4.5');
+DEFINE('DMN_VERSION','2.5.0');
 
 function dmnpidcmp($a, $b)
 {
@@ -500,10 +500,10 @@ function dmn_create($dmnpid,$ip,$forcename = '') {
     echo "retval=$retval\n";
   }
   echo "Generating dash.conf";
-  mkdir("/home/$newuname/.dash");
-  touch("/home/$newuname/.dash/dash.conf");
-  chmod("/home/$newuname/.dash",0700);
-  chmod("/home/$newuname/.dash/dash.conf",0600);
+  mkdir("/home/$newuname/.dashcore");
+  touch("/home/$newuname/.dashcore/dash.conf");
+  chmod("/home/$newuname/.dashcore",0700);
+  chmod("/home/$newuname/.dashcore/dash.conf",0600);
   $conflist = array('server=1',
          'rpcuser='.$newuname.'rpc',
          'rpcpassword='.randomPassword(128),
@@ -519,7 +519,7 @@ function dmn_create($dmnpid,$ip,$forcename = '') {
   }
 
   $dashconf = implode("\n",$conflist);
-  file_put_contents("/home/$newuname/.dash/dash.conf",$dashconf);
+  file_put_contents("/home/$newuname/.dashcore/dash.conf",$dashconf);
   echo "OK\n";
   echo "Setting ACL";
   if (file_exists("/home/$newuname/.bash_history")) {
@@ -529,10 +529,10 @@ function dmn_create($dmnpid,$ip,$forcename = '') {
   chmod("/home/$newuname/.profile",0600);
   chmod("/home/$newuname/.bash_logout",0600);
   chmod("/home/$newuname/",0700);
-  chown("/home/$newuname/.dash/",$newuname);
-  chgrp("/home/$newuname/.dash/",$newuname);
-  chown("/home/$newuname/.dash/dash.conf",$newuname);
-  chgrp("/home/$newuname/.dash/dash.conf",$newuname);
+  chown("/home/$newuname/.dashcore/",$newuname);
+  chgrp("/home/$newuname/.dashcore/",$newuname);
+  chown("/home/$newuname/.dashcore/dash.conf",$newuname);
+  chgrp("/home/$newuname/.dashcore/dash.conf",$newuname);
   echo "OK\n";
   echo "Add to /etc/network/interfaces\n";
   echo "        post-up /sbin/ifconfig eth0:$newnum $ip netmask 255.255.255.255 broadcast $ip\n";
@@ -691,8 +691,15 @@ function dmn_restartfrozen($dmnpid) {
     else {
       $counter = 1;
     }
-    file_put_contents("/tmp/dmnctl-NR-$uname-counter",$counter);
-    if ($counter >= DMN_NRCOUNT) {
+    xechoToFile(DMN_NRCOUNTLOG,"Unresponsive ".$uname." counter ".$counter);
+    if ($node["testnet"]) {
+      $maxcount = DMN_NRCOUNT_TEST;
+    }
+    else {
+      $maxcount = DMN_NRCOUNT;
+    }
+    if ($counter >= $maxcount) {
+      unlink("/tmp/dmnctl-NR-$uname-counter",$counter);
       $commands[] = array("status" => 0,
           "nodenum" => $nodenum,
           "cmd" => "$uname stop " . $node['dashd'],
@@ -704,7 +711,14 @@ function dmn_restartfrozen($dmnpid) {
             "cmd" => "$uname start " . $node['dashd'],
             "exitcode" => -1,
             "output" => '');
+        xechoToFile(DMN_NRCOUNTLOG,"Restarting unresponsive ".$uname);
       }
+      else {
+        xechoToFile(DMN_NRCOUNTLOG,"Stopping unresponsive ".$uname);
+      }
+    }
+    else {
+      file_put_contents("/tmp/dmnctl-NR-$uname-counter",$counter);
     }
   }
   dmn_ctlstartstop($commands);
@@ -1161,7 +1175,7 @@ function dmn_status($dmnpid) {
           $mnpubkeylist = $dmnpidinfo['mnpubkey'];
           foreach($mnlist as $ip => $activetrue) {
             if ($activetrue != 1) {
-              if ($activetrue == "ENABLED") {
+              if (($activetrue == "ENABLED") || ($activetrue == "PRE_ENABLED")) {
                 $active = 1;
               }
               else {
@@ -1291,7 +1305,12 @@ function dmn_status($dmnpid) {
             } while ($rcount > 0);
 
             // Store each value separated by spaces
-            list($mn3status, $mn3protocol, $mn3pubkey, $mn3ipport, $mn3lastseen, $mn3activeseconds, $mn3lastpaid) = explode(" ",$mn3data);
+            if ($dmnpidinfo['versionhandling'] == 3) {
+              list($mn3status, $mn3protocol, $mn3pubkey, $mn3ipport, $mn3lastseen, $mn3activeseconds, $mn3lastpaid) = explode(" ",$mn3data);
+            }
+            else {
+              list($mn3status, $mn3protocol, $mn3pubkey, $mn3lastseen, $mn3activeseconds, $mn3lastpaid, $mn4lastpaidblock, $mn3ipport) = explode(" ",$mn3data);
+            }
 
             // Handle the IPs
             if (substr($mn3ipport,0,1) == "[") {
@@ -1300,7 +1319,11 @@ function dmn_status($dmnpid) {
             }
             else {
               // IPv4
-              list($mn3ip, $mn3port) = explode(":", $mn3ipport);
+              $test = explode(":", $mn3ipport);
+              if (!array_key_exists(1,$test)) {
+                var_dump($mn3ipport);
+              }
+              list($mn3ip, $mn3port) = $test;
             }
 
             if (array_key_exists($mn3output."-".$dashdinfo['testnet'],$mninfo2)) {
@@ -1323,7 +1346,7 @@ function dmn_status($dmnpid) {
                                                                          "MasternodeActiveSeconds" => intval($mn3activeseconds),
                                                                          "MasternodeLastPaid" => $mn3lastpaid);
             }
-            if ($mn3status == "ENABLED") {
+            if (($mn3status == "ENABLED") || ($mn3status == "PRE_ENABLED")) {
               $active = 1;
             }
             else {
@@ -1521,7 +1544,6 @@ function dmn_status($dmnpid) {
 
     // v12 handling / VersionHandling = 3
     $wsmninfo2 = array();
-
     foreach($mninfo2 as $output => $mninfo) {
       list($mnoutputhash, $mnoutputindex, $mntestnet) = explode("-", $output);
       $wsmninfo2[] = array("MasternodeOutputHash" => $mnoutputhash,

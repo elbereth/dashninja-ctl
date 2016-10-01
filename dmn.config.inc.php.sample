@@ -48,8 +48,11 @@ DEFINE('DMN_NICELEVEL_TEST',18);
 
 // How many successive times a node can be notresponding before force-stop or restart
 DEFINE('DMN_NRCOUNT',3);
+DEFINE('DMN_NRCOUNT_TEST',6);
 // Where to store the counter file
 DEFINE('DMN_NRCOUNTDIR','/tmp/');
+// Log NRs
+DEFINE('DMN_NRCOUNTLOG','/var/log/dmn/nrcount.log');
 
 // Parallel threads (for start-stop and RPC commands)
 DEFINE('DMN_THREADS_MAX',8);
@@ -87,6 +90,12 @@ DEFINE('DMN_BLOCKPARSER_ARCHIVE_LONGTERM_MIN',576);
 // Third parties fetching configuration
 //  Dash Whale partner ID
 DEFINE('DMN_DASHWHALE_PARTNERID', '000000000000');
+
+// Auto-Update URLs
+//  Testnet binary (Bamboo DASH server)
+DEFINE('DMN_AUTOUPDATE_TEST','https://dashpay.atlassian.net/builds/artifact/DASHL-DEV/JOB1/build-latestSuccessful/gitian-linux-dash-dist/dash-0.12.1-linux64.tar.gz');
+//  Semaphore
+DEFINE('DMN_AUTOUPDATE_SEMAPHORE','/var/run/dmnautoupdate.pid');
 
 // Command Download specifics
 //  Download folder

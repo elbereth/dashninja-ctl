@@ -36,7 +36,8 @@
   $rpccommand = $argv[2];
   $outputfile = $argv[3];
   $nodepath1 = DMN_PID_PATH.$uname.'/.darkcoin/';
-  $nodepath2 = DMN_PID_PATH.$uname.'/.dash/';
+$nodepath2 = DMN_PID_PATH.$uname.'/.dash/';
+$nodepath3 = DMN_PID_PATH.$uname.'/.dashcore/';
 
   if (is_dir($nodepath1)) {
     $nodepath = $nodepath1;
@@ -44,8 +45,11 @@
   elseif (is_dir($nodepath2)) {
     $nodepath = $nodepath2;
   }
+  elseif (is_dir($nodepath3)) {
+    $nodepath = $nodepath3;
+  }
   else {
-    xecho("Directory $nodepath2 not found.\n");
+    xecho("Directory $nodepath3 not found.\n");
     die(1);
   }
   if (file_exists($outputfile)) {

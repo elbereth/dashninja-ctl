@@ -56,6 +56,12 @@ function dmn_getpid($uname,$testnet = false) {
   if (file_exists(DMN_PID_PATH.$uname."/.darkcoin$testinfo/darkcoind.pid") !== FALSE) {
     $res = trim(file_get_contents(DMN_PID_PATH.$uname."/.darkcoin$testinfo/darkcoind.pid"));
   }
+  else if (file_exists(DMN_PID_PATH.$uname."/.dashcore$testinfo/dashd.pid") !== FALSE) {
+    $res = trim(file_get_contents(DMN_PID_PATH.$uname."/.dashcore$testinfo/dashd.pid"));
+  }
+  else if (file_exists(DMN_PID_PATH.$uname."/.dashcore$testinfo/dash.pid") !== FALSE) {
+    $res = trim(file_get_contents(DMN_PID_PATH.$uname."/.dashcore$testinfo/dash.pid"));
+  }
   else if (file_exists(DMN_PID_PATH.$uname."/.dash$testinfo/dashd.pid") !== FALSE) {
     $res = trim(file_get_contents(DMN_PID_PATH.$uname."/.dash$testinfo/dashd.pid"));
   }
@@ -240,6 +246,19 @@ function randomPassword($length = 8) {
     $pass[] = $alphabet[$n];
   }
   return implode($pass); //turn the array into a string
+}
+
+function delTree($dir) {
+    $files = array_diff(scandir($dir), array('.','..'));
+    foreach ($files as $file) {
+        (is_dir("$dir/$file")) ? delTree("$dir/$file") : unlink("$dir/$file");
+    }
+    return rmdir($dir);
+}
+
+function xechoToFile($logfile,$line) {
+  $data = date('Y-m-d H:i:s').' - '.$line;
+  file_put_contents($logfile,$data,FILE_APPEND);
 }
 
 ?>
