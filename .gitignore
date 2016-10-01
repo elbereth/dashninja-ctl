@@ -2,5 +2,8 @@ dmn.config.inc.php
 dashdupdate.php.lasthash
 .ssh
 .bash_history
+.bash_logout
 .bash_profile
+.bashrc
+.profile
 .gitconfig
