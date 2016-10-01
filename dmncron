@@ -24,6 +24,7 @@ votesrrdlog=/dev/null
 balancelog=/dev/null
 portchecklog=/dev/null
 blockparserlog=/dev/null
+autoupdatelog=/dev/null
 
 # If parameter 1 is log then enable logging
 if [[ "$1" == "log" ]]; then
@@ -34,6 +35,7 @@ if [[ "$1" == "log" ]]; then
   balancelog=/var/log/dmn/balance.$rundate.log
   portchecklog=/var/log/dmn/portcheck.$rundate.log
   blockparserlog=/var/log/dmn/blockparser.$rundate.log
+  autoupdatelog=/var/log/dmn/autoupdate.$rundate.log
 fi
 
 # Sequentially run scripts
@@ -45,3 +47,4 @@ fi
 # Concurrently run scripts
 /opt/dmnctl/dmnbalance >> $balancelog &
 /opt/dmnctl/dmnportcheck db >> $portchecklog &
+/opt/dmnctl/dmnautoupdate >> $autoupdatelog &
