@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.1.2');
+define('DMN_VERSION','1.2.0');
 
 xecho('dmnblockparser v'.DMN_VERSION."\n");
 
@@ -310,6 +310,27 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                           "BlockMNRatio" => $btpam);
           $btarchive["/dev/shm/$uname/bt/$btfile"] = DMN_BLOCKPARSER_ARCHIVE.$uname.'/bt/'.$btfile;
         }
+        elseif (($bt !== false) && isset($bt) && array_key_exists('masternode',$bt) && is_array($bt["masternode"])) {
+          if  (array_key_exists('payee',$bt["masternode"])) {
+            echo $bt["masternode"]['payee'] . "\n";
+            if (array_key_exists('amount', $bt["masternode"]) && array_key_exists('coinbasevalue', $bt)) {
+                $btpam = $bt["masternode"]['amount'] / $bt['coinbasevalue'];
+            } else {
+                $btpam = 0.2;
+            }
+            $bhws[] = array("BlockHeight" => $blockid,
+                "BlockTestNet" => $testnet,
+                "FromNodeUserName" => $uname,
+                "BlockMNPayee" => $bt["masternode"]['payee'],
+                "LastUpdate" => date('Y-m-d H:i:s', $bt['curtime']),
+                "Protocol" => $btprotocol,
+                "BlockMNRatio" => $btpam);
+          }
+          else {
+            echo "No payee\n";
+          }
+          $btarchive["/dev/shm/$uname/bt/$btfile"] = DMN_BLOCKPARSER_ARCHIVE.$uname.'/bt/'.$btfile;
+        }
         else {
           echo "Incorrect format\n";
         }
@@ -344,6 +365,14 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
         }
       }
       $block = json_decode(file_get_contents("/dev/shm/$uname/$blockfile"),true);
+      $minprotocol = 0;
+      $maxprotocol = 9999999999;
+      if ($block["version"] == 536870913) {
+        $minprotocol = 70206;
+      }
+      if ($block["version"] == 3) {
+          $maxprotocol = 70103;
+      }
       if (($block !== false) && isset($block) && array_key_exists('height',$block)) {
         if ($block['height'] == $blockid) {
           if (($blockidlow == -1) || ($blockid < $blockidlow)) {
@@ -464,6 +493,12 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                     else {
                       $protocol = 0;
                     }
+                    if ($protocol < $minprotocol) {
+                      $protocol = $minprotocol;
+                    }
+                    if ($protocol > $maxprotocol) {
+                      $protocol = $maxprotocol;
+                    }
                     $bws[] = array("BlockTestNet" => $testnet,
                                    "BlockId" => $blockid,
                                    "BlockHash" => $block['hash'],
@@ -484,6 +519,12 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                     echo "$mnpayee ($mnpaid DASH) - ";
                   }
                   else {
+                    if ($protocol < $minprotocol) {
+                        $protocol = $minprotocol;
+                    }
+                    if ($protocol > $maxprotocol) {
+                        $protocol = $maxprotocol;
+                    }
                     $bws[] = array("BlockTestNet" => $testnet,
                                    "BlockId" => $blockid,
                                    "BlockHash" => $block['hash'],
@@ -503,6 +544,7 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                         );
                     echo "Unpaid - ";
                   }
+                  echo " PV=$protocol - ";
                 }
               }
             }
