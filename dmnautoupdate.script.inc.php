@@ -125,7 +125,7 @@ else {
     echo "OK (".$dashdpath.")\n";
     xecho("Retrieving version number: ");
     exec($dashdpath." -?",$output,$ret);
-    if ($ret != 1) {
+    if ($ret != 0) {
         echo "ERROR (dashd return code $ret)\n";
         die2(5);
     }
