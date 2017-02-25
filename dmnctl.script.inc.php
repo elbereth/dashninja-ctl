@@ -749,7 +749,7 @@ function dmn_status($dmnpid) {
   $protocolinfo = array();
   $curprotocol = 0;
   $oldprotocol = 99999;
-  $mnstatusexvalues = array('ENABLED','EXPIRED','VIN_SPENT','REMOVE','POS_ERROR','','PRE_ENABLED','WATCHDOG_EXPIRED');
+  $mnstatusexvalues = array('ENABLED','EXPIRED','VIN_SPENT','REMOVE','POS_ERROR','','PRE_ENABLED','WATCHDOG_EXPIRED','NEW_START_REQUIRED','UPDATE_REQUIRED');
 
   $wsstatus = array();
 
