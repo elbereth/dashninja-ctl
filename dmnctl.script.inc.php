@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.6.0');
+DEFINE('DMN_VERSION','2.6.1');
 
 function dmnpidcmp($a, $b)
 {
@@ -794,6 +794,11 @@ function dmn_status($dmnpid) {
             "datatype" => "gobjectlist",
             "cmd" => $uname . ' "gobject list"',
             "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_list.json");
+          $commands[] = array("status" => 0,
+              "dmnnum" => $dmnnum,
+              "datatype" => "getgovernanceinfo",
+              "cmd" => $uname . ' getgovernanceinfo',
+              "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getgovernanceinfo.json");
       }
       // v12.0 (vh=3)
       else {
@@ -988,7 +993,15 @@ function dmn_status($dmnpid) {
               "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_getvotes_$mnbudgetid.json");
         }
       }
-      elseif (($dmnpidinfo['versionhandling'] == 4) && array_key_exists("gobjectlist",$dmnpidinfo) && is_array($dmnpidinfo["gobjectlist"])) {
+      elseif ($dmnpidinfo['versionhandling'] == 4) {
+        if  (array_key_exists("getgovernanceinfo",$dmnpidinfo) && is_array($dmnpidinfo["getgovernanceinfo"])) {
+            $commands[] = array("status" => 0,
+                "dmnnum" => $dmnnum,
+                "datatype" => "getsuperblockbudget",
+                "cmd" => $uname . ' "getsuperblockbudget '.$dmnpidinfo["getgovernanceinfo"]["nextsuperblock"].'"',
+                "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getsuperblockbudget.json");
+        }
+        if  (array_key_exists("gobjectlist",$dmnpidinfo) && is_array($dmnpidinfo["gobjectlist"])) {
           $gobjectproposals = array();
           $gobjecttriggers = array();
           foreach ($dmnpidinfo["gobjectlist"] as $gobjecthash => $gobjectdata) {
@@ -1026,7 +1039,7 @@ function dmn_status($dmnpid) {
           }
           $dmnpid[$dmnnum]["gobjectlist"] = array("proposals" => $gobjectproposals, "triggers" => $gobjecttriggers);
       }
-
+      }
     }
   }
 
@@ -1065,6 +1078,9 @@ function dmn_status($dmnpid) {
 
   $networkhashps = false;
   $networkhashpstest = false;
+  $governancebudget = array(false,false);
+  $governancenextsb = array(false,false);
+
   $spork = array();
 
   $mninfo2 = array();
@@ -1336,6 +1352,14 @@ function dmn_status($dmnpid) {
           }
           // gobject proposals and triggers handling (4) [v12.1]
           elseif ($dmnpidinfo['versionhandling'] == 4) {
+              // Store the next superblock
+              if (($governancenextsb[$dashdinfo['testnet']] === false) || ($governancenextsb[$dashdinfo['testnet']] > intval($dmnpidinfo['getgovernanceinfo']['nextsuperblock']))) {
+                $governancenextsb[$dashdinfo['testnet']] = intval($dmnpidinfo['getgovernanceinfo']['nextsuperblock']);
+              }
+              // Store the budget available in next superblock
+              if (($governancebudget[$dashdinfo['testnet']] === false) || ($governancebudget[$dashdinfo['testnet']] > floatval($dmnpidinfo['getsuperblockbudget']))) {
+                $governancebudget[$dashdinfo['testnet']] = floatval($dmnpidinfo['getsuperblockbudget']);
+              }
               // Parse proposals
               if (is_array($dmnpidinfo["gobjectlist"]) && is_array($dmnpidinfo["gobjectlist"]["proposals"])) {
                   foreach ($dmnpidinfo["gobjectlist"]["proposals"] as $proposaldata) {
@@ -1810,8 +1834,12 @@ function dmn_status($dmnpid) {
                      'gobjproposals' => $wsgoproposals,
                      'gobjtriggers' => $wsgotriggers,
                      'gobjvotes' => $wsgobjectvotes,
-                     'stats' => array(0 => array('networkhashps' => $networkhashps),
-                                      1 => array('networkhashps' => $networkhashpstest)));
+                     'stats' => array(0 => array('networkhashps' => $networkhashps,
+                                                 'governancenextsuperblock' => $governancenextsb[0],
+                                                 'governancebudget' =>  $governancebudget[0]),
+                                      1 => array('networkhashps' => $networkhashpstest,
+                                                 'governancenextsuperblock' => $governancenextsb[1],
+                                                 'governancebudget' =>  $governancebudget[1])));
     $contentraw = dmn_cmd_post('ping',$payload,$response);
     if (strlen($contentraw) > 0) {
       $content = json_decode($contentraw,true);
