@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.2.0');
+define('DMN_VERSION','1.3.0');
 
 xecho('dmnblockparser v'.DMN_VERSION."\n");
 
@@ -146,7 +146,7 @@ else {
   die(203);
 }
 
-xecho('Retrieving superblocks expected: ');
+xecho('Retrieving superblocks (legacy) expected: ');
 $result = dmn_cmd_get('/budgetsexpected',array(),$response);
 if ($response['http_code'] == 200) {
   echo "Fetched...";
@@ -161,7 +161,7 @@ if ($response['http_code'] == 200) {
     die(212);
   }
   $mnsuperblocks = $mnsuperblocks['data']['budgetsexpected'];
-  echo " OK (".count($mnsuperblocks)." entries)\n";
+  echo " OK (MN=".count($mnsuperblocks[0])."/TN=".count($mnsuperblocks[1])." entries)\n";
 }
 else {
   echo "Failed [" . $response['http_code'] . "]\n";
@@ -176,7 +176,37 @@ else {
   die(214);
 }
 
-function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, &$bhws, &$bws, &$btarchive, &$blockarchive, &$txarchive, &$mparchive) {
+xecho('Retrieving superblocks (v0.12.1+) expected: ');
+$result = dmn_cmd_get('/superblocksexpected',array(),$response);
+if ($response['http_code'] == 200) {
+    echo "Fetched...";
+    $mnsuperblocks2 = json_decode($result,true);
+    if ($mnsuperblocks2 === false) {
+        echo " Failed to JSON decode!\n";
+        die(210);
+    }
+    elseif (!is_array($mnsuperblocks2) || !array_key_exists('data',$mnsuperblocks2) || !is_array($mnsuperblocks2['data'])
+        || !array_key_exists('superblocksexpected',$mnsuperblocks2['data']) || !is_array($mnsuperblocks2['data']['superblocksexpected'])) {
+        echo " Incorrect data!\n";
+        die(212);
+    }
+    $mnsuperblocks2 = $mnsuperblocks2['data']['superblocksexpected'];
+    echo " OK (MN=".count($mnsuperblocks2[0])."/TN=".count($mnsuperblocks2[1])." entries)\n";
+}
+else {
+    echo "Failed [" . $response['http_code'] . "]\n";
+    if ($response['http_code'] != 500) {
+        $result = json_decode($result, true);
+        if ($result !== false) {
+            foreach ($result['messages'] as $num => $msg) {
+                xecho("Error #$num: $msg\n");
+            }
+        }
+    }
+    die(214);
+}
+
+function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, $mnsuperblocks2, &$bhws, &$bws, &$btarchive, &$blockarchive, &$txarchive, &$mparchive) {
 
   xecho("==> Processing $uname: ");
   if (!is_dir("/dev/shm/$uname")) {
@@ -310,8 +340,23 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                           "BlockMNRatio" => $btpam);
           $btarchive["/dev/shm/$uname/bt/$btfile"] = DMN_BLOCKPARSER_ARCHIVE.$uname.'/bt/'.$btfile;
         }
-        elseif (($bt !== false) && isset($bt) && array_key_exists('masternode',$bt) && is_array($bt["masternode"])) {
-          if  (array_key_exists('payee',$bt["masternode"])) {
+        elseif (($bt !== false) && isset($bt) && array_key_exists('masternode',$bt) && is_array($bt["masternode"]) && array_key_exists('superblock',$bt) && is_array($bt["superblock"])) {
+          if (count($bt["superblock"]) > 0) {
+            $totalamnt = 0.0;
+            foreach($bt["superblock"] as $item) {
+                $totalamnt += floatval($item["amount"]);
+            }
+            $btpam = $totalamnt / $bt['coinbasevalue'];
+            $bhws[] = array("BlockHeight" => $blockid,
+                "BlockTestNet" => $testnet,
+                "FromNodeUserName" => $uname,
+                "BlockMNPayee" => "SUPERBLOCK",
+                "LastUpdate" => date('Y-m-d H:i:s', $bt['curtime']),
+                "Protocol" => $btprotocol,
+                "BlockMNRatio" => $btpam);
+              echo "Superblock\n";
+          }
+          else if (array_key_exists('payee',$bt["masternode"])) {
             echo $bt["masternode"]['payee'] . "\n";
             if (array_key_exists('amount', $bt["masternode"]) && array_key_exists('coinbasevalue', $bt)) {
                 $btpam = $bt["masternode"]['amount'] / $bt['coinbasevalue'];
@@ -330,6 +375,27 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
             echo "No payee\n";
           }
           $btarchive["/dev/shm/$uname/bt/$btfile"] = DMN_BLOCKPARSER_ARCHIVE.$uname.'/bt/'.$btfile;
+        }
+        elseif (($bt !== false) && isset($bt) && array_key_exists('masternode',$bt) && is_array($bt["masternode"])) {
+            if  (array_key_exists('payee',$bt["masternode"])) {
+                echo $bt["masternode"]['payee'] . "\n";
+                if (array_key_exists('amount', $bt["masternode"]) && array_key_exists('coinbasevalue', $bt)) {
+                    $btpam = $bt["masternode"]['amount'] / $bt['coinbasevalue'];
+                } else {
+                    $btpam = 0.2;
+                }
+                $bhws[] = array("BlockHeight" => $blockid,
+                    "BlockTestNet" => $testnet,
+                    "FromNodeUserName" => $uname,
+                    "BlockMNPayee" => $bt["masternode"]['payee'],
+                    "LastUpdate" => date('Y-m-d H:i:s', $bt['curtime']),
+                    "Protocol" => $btprotocol,
+                    "BlockMNRatio" => $btpam);
+            }
+            else {
+                echo "No payee\n";
+            }
+            $btarchive["/dev/shm/$uname/bt/$btfile"] = DMN_BLOCKPARSER_ARCHIVE.$uname.'/bt/'.$btfile;
         }
         else {
           echo "Incorrect format\n";
@@ -367,7 +433,7 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
       $block = json_decode(file_get_contents("/dev/shm/$uname/$blockfile"),true);
       $minprotocol = 0;
       $maxprotocol = 9999999999;
-      if ($block["version"] == 536870913) {
+      if ($block["version"] == 536870912) {
         $minprotocol = 70206;
       }
       if ($block["version"] == 3) {
@@ -381,7 +447,26 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
           if (($blockidhigh == -1) || ($blockid > $blockidhigh)) {
             $blockidhigh = $blockid;
           }
-          if (array_key_exists($blockid,$mnsuperblocks[$testnet])) {
+          $mnsb2checkorig = array("Payees" => 0, "TotalAmount" => 0.0);
+          $mnsb2addresses = array();
+          $mnsb2details = array();
+          $mnsb2detailsalt = array();
+          if (array_key_exists($blockid,$mnsuperblocks2[$testnet])) {
+            $issuperblock = 2;
+            foreach ($mnsuperblocks2[$testnet][$blockid]["ProposalPayments"] as $key => $prop) {
+              $mnsb2checkorig["Payees"] ++;
+              $mnsb2checkorig["TotalAmount"] += floatval($prop["ProposalPaymentAmount"]);
+              $mnsb2addresses[] = $prop["ProposalPaymentAddress"];
+              $mnsb2details[] = array(
+                  "BlockTestNet" => $testnet,
+                  "BlockId" => $blockid,
+                  "GovernanceObjectPaymentAddress" => $prop["ProposalPaymentAddress"],
+                  "GovernanceObjectPaymentAmount" => $prop["ProposalPaymentAmount"],
+                  "GovernanceObjectPaymentProposalHash" => $prop["ProposalHash"]
+              );
+            }
+          }
+          elseif (array_key_exists($blockid,$mnsuperblocks[$testnet])) {
             $issuperblock = 1;
           }
           else {
@@ -405,12 +490,7 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                   $total = 0;
                   foreach($tx['vout'] as $voutid => $vout) {
                     if (array_key_exists('scriptPubKey',$vout) && is_array($vout['scriptPubKey']) && array_key_exists('addresses',$vout['scriptPubKey']) && (count($vout['scriptPubKey']['addresses']) == 1)) {
-                      if (array_key_exists($vout['scriptPubKey']['addresses'][0],$outcheck)) {
-                        $outcheck[$vout['scriptPubKey']['addresses'][0]] += $vout['value'];
-                      }
-                      else {
-                        $outcheck[$vout['scriptPubKey']['addresses'][0]] = $vout['value'];
-                      }
+                      $outcheck[] = array($vout['scriptPubKey']['addresses'][0],$vout['value']);
                       $total += $vout['value'];
                     }
                   }
@@ -431,6 +511,7 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                     $mntest2to = $mntest2+($mntest2*0.001);
                   }
                   $mnpayee = false;
+                  $mnsb2check = array("Payees" => 0, "TotalAmount" => 0.0);
                   $mnpaid = 0;
                   $mnpaidok = 0;
                   $pooladdr = '';
@@ -439,8 +520,21 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                   $foundinlist = false;
                   $mnpayeedonation = 0;
                   $superblockbudgetname = "";
-                  foreach($outcheck as $address => $value) {
-                    if (($issuperblock == 1) && ($address == $mnsuperblocks[$testnet][$blockid]["PaymentAddress"])) {
+                  foreach($outcheck as $itemot) {
+                    list($address,$value) = $itemot;
+                    if (($issuperblock == 2) && (in_array($address,$mnsb2addresses))) {
+                      $mnsb2check["Payees"] ++;
+                      $mnsb2check["TotalAmount"] += $value;
+                      $mnpayee = "SUPERBLOCK";
+                      $mnsb2detailsalt[] = array(
+                            "BlockTestNet" => $testnet,
+                            "BlockId" => $blockid,
+                            "GovernanceObjectPaymentAddress" => $address,
+                            "GovernanceObjectPaymentAmount" => $value,
+                            "GovernanceObjectPaymentProposalHash" => sha1($address.$value)
+                      );
+                    }
+                    elseif (($issuperblock == 1) && ($address == $mnsuperblocks[$testnet][$blockid]["PaymentAddress"])) {
                       $mnpayee = $address;
                       $mnpaid = $value;
                       if ($mnpaid == $mnsuperblocks[$testnet][$blockid]["MonthlyPayment"]) {
@@ -452,39 +546,48 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                       $mnpayeedonation = 0;
                       $superblockbudgetname = $mnsuperblocks[$testnet][$blockid]["BlockProposal"];
                     }
-                    elseif (($issuperblock == 0) && array_key_exists($address,$mnpubkeys)) {
-                      $mnpayee = $address;
-                      $mnpaid = $value;
-                      $mnpaidok = 1;
-                      $mnpayeedonation = 0;
-                    }
-                    elseif (($issuperblock == 0) && array_key_exists($address,$mndonations)) {
-                      $mnpayee = $address;
-                      $mnpaid = $value;
-                      $mnpaidok = 1;
-                      $mnpayeedonation = 1;
-                    }
-/*                    elseif (($issuperblock == 0) && ($mnpaidok != 1) &&
-                             ((($value >= $mntest1from) && ($value <= $mntest1to)) ||
-                              (($value >= $mntest2from) && ($value <= $mntest2to)))) {
-                      $mnpayee = $address;
-                      $mnpaid = $value;
-                      $mnpaidok = 1;
-                      $mnpayeedonation = 0;
-                      echo "MASTERNODE GUESS";
-                    }*/
                     else {
-                      if ($poolpaidlast <= $value) {
-                        $poolpaidlast = $value;
-                        $pooladdr = $address;
-                        $foundinlist = array_key_exists($address,$poolpubkeys);
-                      }
-                      $pooladdrnum++;
+                      if ($issuperblock == 0) {
+                          if (array_key_exists($address, $mnpubkeys)) {
+                              $mnpayee = $address;
+                              $mnpaid = $value;
+                              $mnpaidok = 1;
+                              $mnpayeedonation = 0;
+                          } elseif (array_key_exists($address, $mndonations)) {
+                              $mnpayee = $address;
+                              $mnpaid = $value;
+                              $mnpaidok = 1;
+                              $mnpayeedonation = 1;
+                          } else {
+                              if ($poolpaidlast <= $value) {
+                                  $poolpaidlast = $value;
+                                  $pooladdr = $address;
+                                  $foundinlist = array_key_exists($address, $poolpubkeys);
+                              }
+                              $pooladdrnum++;
+                          }
+                        } else {
+                            if ($poolpaidlast <= $value) {
+                                $poolpaidlast = $value;
+                                $pooladdr = $address;
+                                $foundinlist = array_key_exists($address, $poolpubkeys);
+                            }
+                            $pooladdrnum++;
+                        }
                     }
                   }
                   echo $pooladdr." - ";
                   if (($pooladdrnum > 2) && (!$foundinlist)) {
                     $pooladdr = "P2POOL";
+                  }
+                  if ($issuperblock > 0) {
+                    echo "SUPERBLOCK=$issuperblock";
+                    if (($issuperblock == 2) && (($mnsb2check["Payees"] != $mnsb2checkorig["Payees"]) || ($mnsb2check["TotalAmount"] != $mnsb2checkorig["TotalAmount"]))) {
+                      echo " Error (".$mnsb2check["Payees"]."!=".$mnsb2checkorig["Payees"]." OR ".$mnsb2check["TotalAmount"]."!=".$mnsb2checkorig["TotalAmount"].")";
+                      $mnsb2details = $mnsb2detailsalt;
+                    }
+                    $mnpaid = $mnsb2check["TotalAmount"];
+                    echo " - ";
                   }
                   if ($mnpayee !== false) {
                     if (array_key_exists($mnpayee,$mnpubkeys)) {
@@ -512,13 +615,17 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                                    "BlockDifficulty" => $block['difficulty'],
                         "BlockMNPayeeDonation" => $mnpayeedonation,
                         "IsSuperblock" => $issuperblock,
+                        "SuperblockBudgetPayees" => $mnsb2check["Payees"],
+                        "SuperblockBudgetAmount" => $mnsb2check["TotalAmount"],
                         "SuperblockBudgetName" => $superblockbudgetname,
+                        "SuperblockDetails" => $mnsb2details,
                         "BlockDarkSendTXCount" => 0,
                         "MemPoolDarkSendTXCount" => 0,
                         );
                     echo "$mnpayee ($mnpaid DASH) - ";
                   }
                   else {
+                    $protocol = 0;
                     if ($protocol < $minprotocol) {
                         $protocol = $minprotocol;
                     }
@@ -533,18 +640,21 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                                    "BlockSupplyValue" => $total,
                                    "BlockMNPayed" => 0,
                                    "BlockPoolPubKey" => $pooladdr,
-                                   "BlockMNProtocol" => 0,
+                                   "BlockMNProtocol" => $protocol,
                                    "BlockTime" => $block['time'],
                                    "BlockDifficulty" => $block['difficulty'],
                                    "BlockMNPayeeDonation" => 0,
                         "IsSuperblock" => $issuperblock,
+                        "SuperblockBudgetPayees" => $mnsb2check["Payees"],
+                        "SuperblockBudgetAmount" => $mnsb2check["TotalAmount"],
                         "SuperblockBudgetName" => $superblockbudgetname,
+                        "SuperblockDetails" => $mnsb2details,
                         "BlockDarkSendTXCount" => 0,
                         "MemPoolDarkSendTXCount" => 0,
                         );
                     echo "Unpaid - ";
                   }
-                  echo " PV=$protocol - ";
+                  echo "PV=$protocol - ";
                 }
               }
             }
@@ -583,17 +693,17 @@ function dmn_gettxtype($tx) {
   $isix = false;
 
   // DarkSend/PrivacyProtect
-  $denoms = array(0.100001,
+  $denoms = array(0.0100001,
+                  0.100001,
                   1.00001,
-                 10.0001,
-                100.001);
+                 10.0001);
   $isds = is_array($tx) && array_key_exists('vout',$tx) && is_array($tx["vout"]) && (count($tx['vout']) > 1);
   $dscount = 0;
   foreach($tx['vout'] as $voutid => $vout) {
     if (array_key_exists('value',$vout) && array_key_exists('scriptPubKey',$vout) && is_array($vout['scriptPubKey']) && array_key_exists('addresses',$vout['scriptPubKey']) && (count($vout['scriptPubKey']['addresses']) == 1)) {
       $voutds = in_array($vout["value"],$denoms);
+      $isds &= $voutds;
       if ($voutds) {
-        $isds &= $voutds;
         $dscount++;
       }
     }
@@ -613,13 +723,12 @@ $bws = array();
 $bhws = array();
 
 foreach($nodes as $node) {
-  dmn_blockparse($node['NodeName'], $node['NodeTestNet'], $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, $bhws, $bws, $btarchive, $blockarchive, $txarchive, $mparchive);
+  dmn_blockparse($node['NodeName'], $node['NodeTestNet'], $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, $mnsuperblocks2, $bhws, $bws, $btarchive, $blockarchive, $txarchive, $mparchive);
 }
 
 if ((count($bhws) > 0) || (count($bws) > 0)) {
   $payload = array('blockshistory' => $bhws,
                    'blocksinfo' => $bws);
-
   xecho("Submitting via webservice: ");
   $response = '';
   $content = dmn_cmd_post('/blocks',$payload,$response);
