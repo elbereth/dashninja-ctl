@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.6.1');
+DEFINE('DMN_VERSION','2.6.2');
 
 function dmnpidcmp($a, $b)
 {
@@ -1225,7 +1225,7 @@ function dmn_status($dmnpid) {
           $mnpubkeylist = $dmnpidinfo['mnpubkey'];
           foreach($mnlist as $ip => $activetrue) {
             if ($activetrue != 1) {
-              if (($activetrue == "ENABLED") || ($activetrue == "PRE_ENABLED")) {
+              if (($activetrue == "ENABLED") || ($activetrue == "PRE_ENABLED") || ($activetrue == "WATCHDOG_EXPIRED")) {
                 $active = 1;
               }
               else {
