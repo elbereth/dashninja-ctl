@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.3.0');
+define('DMN_VERSION','1.3.1');
 
 xecho('dmnblockparser v'.DMN_VERSION."\n");
 
@@ -582,7 +582,7 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                   }
                   if ($issuperblock > 0) {
                     echo "SUPERBLOCK=$issuperblock";
-                    if (($issuperblock == 2) && (($mnsb2check["Payees"] != $mnsb2checkorig["Payees"]) || ($mnsb2check["TotalAmount"] != $mnsb2checkorig["TotalAmount"]))) {
+                    if (($issuperblock == 2) && (($mnsb2check["Payees"] != $mnsb2checkorig["Payees"]) || (round($mnsb2check["TotalAmount"],6) != round($mnsb2checkorig["TotalAmount"],6)))) {
                       echo " Error (".$mnsb2check["Payees"]."!=".$mnsb2checkorig["Payees"]." OR ".$mnsb2check["TotalAmount"]."!=".$mnsb2checkorig["TotalAmount"].")";
                       $mnsb2details = $mnsb2detailsalt;
                     }
