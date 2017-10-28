@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.6.2');
+DEFINE('DMN_VERSION','2.7.1');
 
 function dmnpidcmp($a, $b)
 {
@@ -83,76 +83,76 @@ function dmn_getpayout($mncount,$difficulty) {
 }
 
 // Retrieve the PIDs for the hub nodes
-function dmn_getpids($nodes,$isstatus = false) {
-
+function dmn_getpids($nodes,$isstatus = false,$istestnet) {
   if ($isstatus) {
-    if (file_exists(DMN_CTLSTATUSAUTO_SEMAPHORE) && (posix_getpgid(intval(file_get_contents(DMN_CTLSTATUSAUTO_SEMAPHORE))) !== false) ) {
-      xecho("Already running (PID ".sprintf('%d',file_get_contents(DMN_CTLSTATUSAUTO_SEMAPHORE)).")\n");
+    $semfnam = sprintf(DMN_CTLSTATUSAUTO_SEMAPHORE,$istestnet);
+    if (file_exists($semfnam) && (posix_getpgid(intval(file_get_contents($semfnam))) !== false) ) {
+      xecho("Already running (PID ".sprintf('%d',file_get_contents($semfnam)).")\n");
       die(10);
     }
-    file_put_contents(DMN_CTLSTATUSAUTO_SEMAPHORE,sprintf('%s',getmypid()));
+    file_put_contents($semfnam,sprintf('%s',getmypid()));
   }
 
   $dmnpid = array();
 
   foreach($nodes as $uname => $node) {
-    if (is_dir(DMN_PID_PATH.$uname)) {
-      $conf = new DashConfig($uname);
-      if ($conf->isConfigLoaded()) {
-        if ($node['NodeTestNet'] != $conf->getconfig('testnet')) {
-          xecho("$uname: Configuration inconsistency (testnet/".$node['NodeTestNet']."/".$conf->getconfig('testnet').")\n");
-        }
-        if ($node['NodeEnabled'] != $conf->getmnctlconfig('enable')) {
-          xecho("$uname: Configuration inconsistency (enable/".$node['NodeEnabled']."/".$conf->getmnctlconfig('enable').")\n");
-        }
-        $pid = dmn_getpid($uname,($conf->getconfig('testnet') == '1'));
-        $dmnpiditem = array('pid' => $pid,
-                            'uname' => $uname,
-                            'conf' => $conf,
-                            'type' => $node['NodeType'],
-                            'enabled' => ($node['NodeEnabled'] == 1),
-                            'testnet' => ($node['NodeTestNet'] == 1),
-                            'dashd' => $node['VersionPath'],
-                            'currentbin' => '',
-                            'keeprunning' => ($node['KeepRunning'] == 1),
-                            'keepuptodate' => ($node['KeepUpToDate'] == 1),
-                            'versionraw' => $node['VersionRaw'],
-                            'versiondisplay' => $node['VersionDisplay'],
-                            'versionhandling' => $node['VersionHandling']);
-        if ($pid !== false) {
-          if (file_exists('/proc/'.$pid.'/exe')) {
-            $currentbin = readlink('/proc/'.$pid.'/exe');
-            $dmnpiditem['currentbin'] = $currentbin;
-            if ($currentbin != $node['VersionPath']) {
-              xecho("$uname: Binary mismatch ($currentbin != ".$node['VersionPath'].")");
-/*              if ($dmnpiditem['keepuptodate']) {
-                echo " [Restarting to fix]\n";
-                dmn_startstop(array($dmnpiditem),"restart",($node['NodeTestNet'] == 1),$node['NodeType']);
-                sleep(3);
-                $pid = dmn_getpid($uname,($conf->getconfig('testnet') == '1'));
-                $dmnpiditem['pid'] = $pid;
-                if (($pid !== false) && (file_exists('/proc/'.$pid.'/exe'))) {
-                  $currentbin = readlink('/proc/'.$pid.'/exe');
-                  $dmnpiditem['currentbin'] = $currentbin;
-                  if ($currentbin != $node['VersionPath']) {
-                    xecho("$uname: Binary mismatch ($currentbin != ".$node['VersionPath'].") [Restart failed, need admin]\n");
-                  }
+    if (intval($node["NodeTestNet"]) == $istestnet) {
+        if (is_dir(DMN_PID_PATH . $uname)) {
+            $conf = new DashConfig($uname);
+            if ($conf->isConfigLoaded()) {
+                if ($node['NodeTestNet'] != $conf->getconfig('testnet')) {
+                    xecho("$uname: Configuration inconsistency (testnet/" . $node['NodeTestNet'] . "/" . $conf->getconfig('testnet') . ")\n");
                 }
-              }
-              else {  */
-                echo " [Restart to fix]\n";
+                #if ($node['NodeEnabled'] != $conf->getmnctlconfig('enable')) {
+                #    xecho("$uname: Configuration inconsistency (enable/" . $node['NodeEnabled'] . "/" . $conf->getmnctlconfig('enable') . ")\n");
+                #}
+                $pid = dmn_getpid($uname, ($conf->getconfig('testnet') == '1'));
+                $dmnpiditem = array('pid' => $pid,
+                    'uname' => $uname,
+                    'conf' => $conf,
+                    'type' => $node['NodeType'],
+                    'enabled' => ($node['NodeEnabled'] == 1),
+                    'testnet' => ($node['NodeTestNet'] == 1),
+                    'dashd' => $node['VersionPath'],
+                    'currentbin' => '',
+                    'keeprunning' => ($node['KeepRunning'] == 1),
+                    'keepuptodate' => ($node['KeepUpToDate'] == 1),
+                    'versionraw' => $node['VersionRaw'],
+                    'versiondisplay' => $node['VersionDisplay'],
+                    'versionhandling' => $node['VersionHandling']);
+                if ($pid !== false) {
+                    if (file_exists('/proc/' . $pid . '/exe')) {
+                        $currentbin = readlink('/proc/' . $pid . '/exe');
+                        $dmnpiditem['currentbin'] = $currentbin;
+                        if ($currentbin != $node['VersionPath']) {
+                            xecho("$uname: Binary mismatch ($currentbin != " . $node['VersionPath'] . ")");
+                            /*              if ($dmnpiditem['keepuptodate']) {
+                                            echo " [Restarting to fix]\n";
+                                            dmn_startstop(array($dmnpiditem),"restart",($node['NodeTestNet'] == 1),$node['NodeType']);
+                                            sleep(3);
+                                            $pid = dmn_getpid($uname,($conf->getconfig('testnet') == '1'));
+                                            $dmnpiditem['pid'] = $pid;
+                                            if (($pid !== false) && (file_exists('/proc/'.$pid.'/exe'))) {
+                                              $currentbin = readlink('/proc/'.$pid.'/exe');
+                                              $dmnpiditem['currentbin'] = $currentbin;
+                                              if ($currentbin != $node['VersionPath']) {
+                                                xecho("$uname: Binary mismatch ($currentbin != ".$node['VersionPath'].") [Restart failed, need admin]\n");
+                                              }
+                                            }
+                                          }
+                                          else {  */
+                            echo " [Restart to fix]\n";
 //              }
+                        }
+                    } else {
+                        xecho("$uname: process ID $pid has no binary information (crashed?)\n");
+                    }
+                } else {
+                    xecho("$uname: process ID not found\n");
+                }
+                $dmnpid[] = $dmnpiditem;
             }
-          }
-          else {
-            xecho("$uname: process ID $pid has no binary information (crashed?)\n");
-          }
         }
-        else {
-          xecho("$uname: process ID not found\n");
-        }
-        $dmnpid[] = $dmnpiditem;
-      }
     }
   }
 
@@ -429,7 +429,7 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
     else {
       echo "Error (Failed to move)\n";
     }
-    if (substr($versionraw,0,7) == '0.12.1.') {
+    if ((substr($versionraw,0,7) == '0.12.1.') || (substr($versionraw,0,7) == '0.12.2.')) {
       $versionhandling = 4;
     }
     elseif (substr($versionraw,0,5) == '0.12.') {
@@ -601,7 +601,8 @@ function dmn_startstop($dmnpid,$todo,$testnet = false,$nodetype = 'masternode',$
   $nodes = array();
   foreach($dmnpid as $node) {
     if (($node['testnet'] == $testnet)
-     && ($node['type'] == $nodetype)) {
+     && ($node['type'] == $nodetype)
+     && ($node['enabled'])) {
       $nodes[] = $node;
     }
   }
@@ -735,7 +736,7 @@ function dmn_restartfrozen($dmnpid) {
 }
 
 // Display masternode status and submit statistics to private API
-function dmn_status($dmnpid) {
+function dmn_status($dmnpid,$istestnet) {
 
   $mninfolast = array();
 
@@ -753,7 +754,13 @@ function dmn_status($dmnpid) {
 
   $wsstatus = array();
 
-  xecho('Retrieving status for '.count($dmnpid)." nodes\n");
+  $netstr = "main";
+  if ($istestnet == 1) {
+    $netstr = "test";
+  }
+  $netstr.="net";
+
+  xecho('Retrieving status for '.count($dmnpid)." $netstr nodes\n");
 
   if (!is_dir("/dev/shm/dmnctl")) {
     if (!mkdir("/dev/shm/dmnctl")) {
@@ -1103,7 +1110,7 @@ function dmn_status($dmnpid) {
     $conf = $dmnpidinfo['conf'];
 
     // Is the node enabled in the configuration
-    $dmnenabled = ($conf->getmnctlconfig('enable') == 1);
+    $dmnenabled = $dmnpidinfo['enabled'];
 
     // Get default port
     if ($dmnpidinfo['conf']->getconfig('testnet') == '1') {
@@ -1160,12 +1167,7 @@ function dmn_status($dmnpid) {
       $protocolinfo[$uname] = $protocol;
 
       // Store the networkhash
-      if ($dashdinfo['testnet'] == 1) {
-        $networkhashpstest = intval($dmnpidinfo['networkhashps']);
-      }
-      else {
-        $networkhashps = intval($dmnpidinfo['networkhashps']);
-      }
+      $networkhashps = intval($dmnpidinfo['networkhashps']);
 
       // If the version could be retrieved
       if ($version !== false) {
@@ -1575,8 +1577,6 @@ function dmn_status($dmnpid) {
                               "Blocks" => $blocks,
                               "LastBlockHash" => $blockhash,
                               "Connections" => $connections,
-                              "IP" => $iponly,
-                              "Port" => $port,
                               "Country" => $country,
                               "CountryCode" => $countrycode,
                               "Spork" => $spork[$uname]);
@@ -1818,6 +1818,7 @@ function dmn_status($dmnpid) {
     xecho("Submitting status via webservice (".count($wsstatus)." entries): ");
     $response = '';
     $payload = array('nodes' => $wsstatus,
+                     'testnet' => $istestnet,
                      'mninfo' => $wsmninfo,
                      'mninfo2' => $wsmninfo2,
                      'mnpubkeys' => $wsmnpubkeys,
@@ -1834,12 +1835,9 @@ function dmn_status($dmnpid) {
                      'gobjproposals' => $wsgoproposals,
                      'gobjtriggers' => $wsgotriggers,
                      'gobjvotes' => $wsgobjectvotes,
-                     'stats' => array(0 => array('networkhashps' => $networkhashps,
-                                                 'governancenextsuperblock' => $governancenextsb[0],
-                                                 'governancebudget' =>  $governancebudget[0]),
-                                      1 => array('networkhashps' => $networkhashpstest,
-                                                 'governancenextsuperblock' => $governancenextsb[1],
-                                                 'governancebudget' =>  $governancebudget[1])));
+                     'stats' => array('networkhashps' => $networkhashps,
+                                      'governancenextsuperblock' => $governancenextsb[$istestnet],
+                                      'governancebudget' =>  $governancebudget[$istestnet]));
     $contentraw = dmn_cmd_post('ping',$payload,$response);
     if (strlen($contentraw) > 0) {
       $content = json_decode($contentraw,true);
@@ -1936,37 +1934,37 @@ function dmn_status($dmnpid) {
           } else {
             echo $content["data"]["mnbudgetvotes"]."\n";
           }
-          xecho("+ Final Budget): ");
+          xecho("+ Final Budget: ");
           if ($content["data"]["mnbudgetfinal"] === false) {
             echo "Failed!\n";
           } else {
             echo $content["data"]["mnbudgetfinal"]."\n";
           }
-          xecho("+ Governance Object Proposals): ");
+          xecho("+ Governance Object Proposals: ");
           if ($content["data"]["gobjproposals"] === false) {
             echo "Failed!\n";
           } else {
             echo $content["data"]["gobjproposals"]."\n";
           }
-          xecho("+ Governance Object Triggers): ");
+          xecho("+ Governance Object Triggers: ");
           if ($content["data"]["gobjtriggers"] === false) {
             echo "Failed!\n";
           } else {
             echo $content["data"]["gobjtriggers"]."\n";
           }
-          xecho("+ Governance Object Triggers Payments): ");
+          xecho("+ Governance Object Triggers Payments: ");
           if ($content["data"]["gobjtriggerspayments"] === false) {
             echo "Failed!\n";
           } else {
             echo $content["data"]["gobjtriggerspayments"]."\n";
           }
-          xecho("+ Governance Object Triggers Payments Trim): ");
+          xecho("+ Governance Object Triggers Payments Trim: ");
           if ($content["data"]["gobjtriggerspaymentstrim"] === false) {
             echo "Failed!\n";
           } else {
             echo $content["data"]["gobjtriggerspaymentstrim"]."\n";
           }
-          xecho("+ Governance Object Votes): ");
+          xecho("+ Governance Object Votes: ");
           if ($content["data"]["gobjvotes"] === false) {
             echo "Failed!\n";
           } else {
@@ -1976,6 +1974,12 @@ function dmn_status($dmnpid) {
       }
       elseif (($response['http_code'] >= 400) && ($response['http_code'] <= 499)) {
         echo "Error (".$response['http_code'].": ".$content['message'].")\n";
+      }
+      elseif (($response['http_code'] >= 500) && ($response['http_code'] <= 599)) {
+          echo "Unknown Error (".$response['http_code'].")\n";
+          var_dump($response['http_code']);
+          var_dump($content);
+          var_dump($contentraw);
       }
       else {
         echo "Unknown (".$response['http_code'].")\n";
@@ -2006,6 +2010,16 @@ $starttime = microtime(true);
 xecho("Dash Ninja Control [dmnctl] v".DMN_VERSION." (".date('Y-m-d H:i:s',filemtime(__FILE__)).")\n");
 
 if ($argc > 1) {
+  $istestnet = 0;
+  if ($argc > 2) {
+      if ( ( (strcasecmp($argv[1], 'status') == 0)
+              || (strcasecmp($argv[1],'start') == 0)
+              || (strcasecmp($argv[1],'stop') == 0)
+              || (strcasecmp($argv[1],'restart') == 0) )
+           && ((strcasecmp($argv[2], 'testnet') == 0))) {
+          $istestnet = 1;
+      }
+  }
   xecho("Querying list of nodes for this hub: ");
   $params = array();
   $content = dmn_cmd_get('nodes',$params,$response);
@@ -2025,7 +2039,7 @@ if ($argc > 1) {
   }
   unset($content,$response,$params);
 
-  $dmnpidstatus = dmn_getpids($nodes,(strcasecmp($argv[1],'status') == 0));
+  $dmnpidstatus = dmn_getpids($nodes,(strcasecmp($argv[1],'status') == 0),$istestnet);
   $dmnpid = $dmnpidstatus;
   dmn_startkeeprunning($dmnpid);
 
@@ -2052,9 +2066,10 @@ elseif (strcasecmp($argv[1],'enable') == 0) {
   dmn_enable($dmnpid,$dmntoenable);
 }
 elseif (strcasecmp($argv[1],'status') == 0) {
-  file_put_contents(DMN_CTLSTATUSAUTO_SEMAPHORE,sprintf('%s',getmypid()));
-  dmn_status($dmnpidstatus);
-  unlink(DMN_CTLSTATUSAUTO_SEMAPHORE);
+  $semfnam = sprintf(DMN_CTLSTATUSAUTO_SEMAPHORE,$istestnet);
+  file_put_contents($semfnam,sprintf('%s',getmypid()));
+  dmn_status($dmnpidstatus,$istestnet);
+  unlink($semfnam);
 }
 elseif ((strcasecmp($argv[1],'start') == 0)
      || (strcasecmp($argv[1],'stop') == 0)

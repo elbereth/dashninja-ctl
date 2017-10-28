@@ -19,7 +19,7 @@
 
  */
 
-DEFINE('DMN_VERSION','0.1.0');
+DEFINE('DMN_VERSION','0.1.1');
 
 xecho('dmnautoupdate v'.DMN_VERSION."\n");
 
@@ -35,8 +35,9 @@ if (file_exists(DMN_AUTOUPDATE_SEMAPHORE) && (posix_getpgid(intval(file_get_cont
 file_put_contents(DMN_AUTOUPDATE_SEMAPHORE,sprintf('%s',getmypid()));
 
 xecho("Reading latest version fetched from server: ");
-if (file_exists("dmnautoupdate.data.json")) {
-    $data = file_get_contents("dmnautoupdate.data.json");
+$curdatafile = dirname(__FILE__).'/dmnautoupdate.data.json';
+if (file_exists($curdatafile)) {
+    $data = file_get_contents($curdatafile);
     if ($data === FALSE) {
         echo "ERROR (Could not read file)\n";
         die2(1);
@@ -69,11 +70,11 @@ else {
 
 if ((intval($headers['Content-Length']) == intval($data['Content-Length'])) && ($data['Last-Modified'] == $headers['Last-Modified'])) {
     xecho("Nothing to do, no new binary...\n");
-    xecho("Restarting testnet node: ");
-    exec("/opt/dmnctl/dmnctl restart testnet p2pool",$output,$ret);
-    var_dump($output);
-    var_dump($ret);
-    echo "OK\n";
+//    xecho("Restarting testnet node: ");
+//    exec("/opt/dmnctl/dmnctl restart testnet p2pool",$output,$ret);
+//    var_dump($output);
+//    var_dump($ret);
+//    echo "OK\n";
     die2(0);
 }
 else {
@@ -157,7 +158,7 @@ else {
     }
     echo "OK\n";
     xecho("Saving data for next run...");
-    if (file_put_contents("dmnautoupdate.data.json",json_encode($headers)) === FALSE) {
+    if (file_put_contents($curdatafile,json_encode($headers)) === FALSE) {
         echo "ERROR\n";
         die2(7);
     }

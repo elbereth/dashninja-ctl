@@ -57,7 +57,8 @@ DEFINE('DMN_NRCOUNTLOG','/var/log/dmn/nrcount.log');
 // Parallel threads (for start-stop and RPC commands)
 DEFINE('DMN_THREADS_MAX',8);
 
-DEFINE('DMN_CTLSTATUSAUTO_SEMAPHORE','/var/run/dmnctlstatusauto.pid');
+DEFINE('DMN_CTLSTATUSAUTO_MAIN_SEMAPHORE','/var/run/dmnctlstatusauto0.pid');
+DEFINE('DMN_CTLSTATUSAUTO_TEST_SEMAPHORE','/var/run/dmnctlstatusauto1.pid');
 
 // Port checker specifics
 //  Semaphore for multi-threading (only allow 1 instance)
@@ -78,6 +79,8 @@ DEFINE('DMN_BALANCE_URL_TESTNET','http://127.0.0.1:17890/chain/Dash/q/addressbal
 DEFINE('DMN_BALANCE_URL_MAINNET','http://127.0.0.1:7890/chain/Dash/q/addressbalance/%%p%%');
 
 // Block Parser specifics
+//  Semaphore file (only allow 1 instance)
+DEFINE('DMN_BLOCKPARSER_SEMAPHORE','/var/run/dmnblockparser.pid');
 //  Activate archival (if disabled files are deleted once consumed)
 DEFINE('DMN_BLOCKPARSER_ARCHIVE_DO',false);
 //  Folder to archive json files (username subfolders will be created)
@@ -93,7 +96,7 @@ DEFINE('DMN_DASHWHALE_PARTNERID', '000000000000');
 
 // Auto-Update URLs
 //  Testnet binary (Bamboo DASH server)
-DEFINE('DMN_AUTOUPDATE_TEST','https://dashpay.atlassian.net/builds/artifact/DASHL-DEV/JOB1/build-latestSuccessful/gitian-linux-dash-dist/dash-0.12.1-linux64.tar.gz');
+DEFINE('DMN_AUTOUPDATE_TEST','https://bamboo.dash.org/artifact/DASHL-DEV/JOB1/build-latestSuccessful/gitian-linux-dash-dist/dashcore-0.12.2-linux64.tar.gz');
 //  Semaphore
 DEFINE('DMN_AUTOUPDATE_SEMAPHORE','/var/run/dmnautoupdate.pid');
 

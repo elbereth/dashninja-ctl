@@ -23,9 +23,14 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.3.1');
+define('DMN_VERSION','1.5.0');
 
 xecho('dmnblockparser v'.DMN_VERSION."\n");
+if (file_exists(DMN_BLOCKPARSER_SEMAPHORE) && (posix_getpgid(intval(file_get_contents(DMN_BLOCKPARSER_SEMAPHORE))) !== false) ) {
+    xecho("Already running (PID ".sprintf('%d',file_get_contents(DMN_BLOCKPARSER_SEMAPHORE)).")\n");
+    die(10);
+}
+file_put_contents(DMN_BLOCKPARSER_SEMAPHORE,sprintf('%s',getmypid()));
 
 xecho('Retrieving nodes for this hub: ');
 $result = dmn_cmd_get('/nodes',array(),$response);
@@ -714,6 +719,88 @@ function dmn_gettxtype($tx) {
 
 }
 
+
+function dmn_ws_submit($bhws, $bws, $blockarchive, $btarchive, $txarchive, $mparchive)
+{
+    if ((count($bhws) > 0) || (count($bws) > 0)) {
+        $payload = array('blockshistory' => $bhws,
+            'blocksinfo' => $bws);
+        xecho("Submitting via webservice: ");
+        $response = '';
+        $content = dmn_cmd_post('/blocks', $payload, $response);
+
+        if ($response['http_code'] == 100) {
+            var_dump($response);
+            var_dump($content);
+            $content = json_decode($content, true);
+            echo "OK (BH=" . $content['data']['blockshistory'] . "/BI=" . $content['data']['blocksinfo'] . "/MI=" . $content['data']['mninfo'] . ")\n";
+        } elseif ($response['http_code'] == 202) {
+            $content = json_decode($content, true);
+            echo "OK (BH=" . $content['data']['blockshistory'] . "/BI=" . $content['data']['blocksinfo'] . "/MI=" . $content['data']['mninfo'] . ")\n";
+        } else {
+            echo "Failed [" . $response['http_code'] . "]\n";
+            if ($response['http_code'] != 500) {
+                $result = json_decode($content, true);
+                if ($result !== false) {
+                    foreach ($result['messages'] as $num => $msg) {
+                        xecho("Error #$num: $msg\n");
+                    }
+                }
+            }
+            return(1);
+        }
+    }
+
+    if ((count($blockarchive) + count($btarchive)) > 0) {
+        if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+            xecho("Archiving ");
+        } else {
+            xecho("Deleting ");
+        }
+        echo("treated files: ");
+        if (count($blockarchive) > 0) {
+            foreach ($blockarchive as $filename => $archivename) {
+                if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+                    rename($filename, $archivename);
+                } else {
+                    unlink($filename);
+                }
+            }
+            echo count($blockarchive) . " block files... ";
+            foreach ($txarchive as $filename => $archivename) {
+                if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+                    rename($filename, $archivename);
+                } else {
+                    unlink($filename);
+                }
+            }
+            echo count($txarchive) . " transaction files... ";
+        }
+        if (count($btarchive) > 0) {
+            foreach ($btarchive as $filename => $archivename) {
+                if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+                    rename($filename, $archivename);
+                } else {
+                    unlink($filename);
+                }
+            }
+            echo count($btarchive) . " block template files... ";
+        }
+        if (count($mparchive) > 0) {
+            foreach ($mparchive as $filename => $archivename) {
+                if (DMN_BLOCKPARSER_ARCHIVE_DO) {
+                    rename($filename, $archivename);
+                } else {
+                    unlink($filename);
+                }
+            }
+            echo count($mparchive) . " mempool files... ";
+        }
+        echo "\n";
+    }
+}
+
+// Mainnet
 $btarchive = array();
 $blockarchive = array();
 $txarchive = array();
@@ -722,86 +809,33 @@ $mparchive = array();
 $bws = array();
 $bhws = array();
 
+xecho("Parsing main net blocks\n");
+
 foreach($nodes as $node) {
-  dmn_blockparse($node['NodeName'], $node['NodeTestNet'], $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, $mnsuperblocks2, $bhws, $bws, $btarchive, $blockarchive, $txarchive, $mparchive);
-}
-
-if ((count($bhws) > 0) || (count($bws) > 0)) {
-  $payload = array('blockshistory' => $bhws,
-                   'blocksinfo' => $bws);
-  xecho("Submitting via webservice: ");
-  $response = '';
-  $content = dmn_cmd_post('/blocks',$payload,$response);
-
-  if ($response['http_code'] == 202) {
-    $content = json_decode($content,true);
-    echo "OK (BH=".$content['data']['blockshistory']."/BI=".$content['data']['blocksinfo']."/MI=".$content['data']['mninfo'].")\n";
-  }
-  else {
-    echo "Failed [".$response['http_code']."]\n";
-    if ($response['http_code'] != 500) {
-      $result = json_decode($content,true);
-      if ($result !== false) {
-        foreach($result['messages'] as $num => $msg) {
-          xecho("Error #$num: $msg\n");
-        }
-      }
-    }
-    die();
+  if ($node['NodeTestNet'] == "0") {
+      dmn_blockparse($node['NodeName'], $node['NodeTestNet'], $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, $mnsuperblocks2, $bhws, $bws, $btarchive, $blockarchive, $txarchive, $mparchive);
   }
 }
+dmn_ws_submit($bhws, $bws, $blockarchive, $btarchive, $txarchive, $mparchive);
 
-if ((count($blockarchive)+count($btarchive)) > 0)  {
-  if (DMN_BLOCKPARSER_ARCHIVE_DO) {
-    xecho("Archiving ");
-  }
-  else {
-    xecho("Deleting ");
-  }
-  echo("treated files: ");
-  if (count($blockarchive) > 0) {
-    foreach($blockarchive as $filename => $archivename) {
-      if (DMN_BLOCKPARSER_ARCHIVE_DO) {
-        rename($filename, $archivename);
-      }
-      else {
-        unlink($filename);
-      }
+// Testnet
+$btarchive = array();
+$blockarchive = array();
+$txarchive = array();
+$mparchive = array();
+
+$bws = array();
+$bhws = array();
+
+xecho("Parsing test net blocks\n");
+
+foreach($nodes as $node) {
+    if ($node['NodeTestNet'] == "1") {
+        dmn_blockparse($node['NodeName'], $node['NodeTestNet'], $mnpubkeys, $mndonations, $poolpubkeys, $mnsuperblocks, $mnsuperblocks2, $bhws, $bws, $btarchive, $blockarchive, $txarchive, $mparchive);
     }
-    echo count($blockarchive)." block files... ";
-    foreach($txarchive as $filename => $archivename) {
-      if (DMN_BLOCKPARSER_ARCHIVE_DO) {
-        rename($filename, $archivename);
-      }
-      else {
-        unlink($filename);
-      }
-    }
-    echo count($txarchive)." transaction files... ";
-  }
-  if (count($btarchive) > 0) {
-    foreach($btarchive as $filename => $archivename) {
-      if (DMN_BLOCKPARSER_ARCHIVE_DO) {
-        rename($filename, $archivename);
-      }
-      else {
-        unlink($filename);
-      }
-    }
-    echo count($btarchive)." block template files... ";
-  }
-  if (count($mparchive) > 0) {
-    foreach($mparchive as $filename => $archivename) {
-      if (DMN_BLOCKPARSER_ARCHIVE_DO) {
-        rename($filename, $archivename);
-      }
-      else {
-        unlink($filename);
-      }
-    }
-    echo count($mparchive)." mempool files... ";
-  }
-  echo "\n";
 }
+dmn_ws_submit($bhws, $bws, $blockarchive, $btarchive, $txarchive, $mparchive);
+
+unlink(DMN_BLOCKPARSER_SEMAPHORE);
 
 ?>
