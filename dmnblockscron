@@ -18,30 +18,19 @@
 #
 
 # Disable logging by default
-updatelog=/dev/null
-statuslog=/dev/null
-votesrrdlog=/dev/null
-balancelog=/dev/null
-portchecklog=/dev/null
-autoupdatelog=/dev/null
+blockdegapperlog=/dev/null
+blockparserlog=/dev/null
+block24hgenlog=/dev/null
 
 # If parameter 1 is log then enable logging
 if [[ "$1" == "log" ]]; then
   rundate=$(date +%Y%m%d%H%M%S)
-  updatelog=/var/log/dmn/update.$rundate.log
-  statuslog=/var/log/dmn/status.$rundate.log
-  votesrrdlog=/var/log/dmn/votesrrd.$rundate.log
-  balancelog=/var/log/dmn/balance.$rundate.log
-  portchecklog=/var/log/dmn/portcheck.$rundate.log
-  autoupdatelog=/var/log/dmn/autoupdate.$rundate.log
+  blockdegapperlog=/var/log/dmn/blockdegapper.$rundate.log
+  blockparserlog=/var/log/dmn/blockparser.$rundate.log
+  block24hgenlog=/var/log/dmn/block24hgen.$rundate.log
 fi
 
 # Sequentially run scripts
-#/opt/dmnctl/dashdupdate >> $updatelog
-/opt/dmnctl/dmnctl status >> $statuslog
-#/opt/dmnctl/dmnvotesrrd >> $votesrrdlog
-
-# Concurrently run scripts
-/usr/bin/nice -n 18 /opt/dmnctl/dmnbalance >> $balancelog &
-/usr/bin/nice -n 19 /opt/dmnctl/dmnportcheck db >> $portchecklog &
-/usr/bin/nice -n 15 /opt/dmnctl/dmnautoupdate >> $autoupdatelog &
+/usr/bin/nice -n 14 /opt/dmnctl/dmnblockdegapper main >> $blockdegapperlog
+/usr/bin/nice -n 14 /opt/dmnctl/dmnblockparser >> $blockparserlog
+/usr/bin/nice -n 14 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main blocks24h >> $block24hgenlog
