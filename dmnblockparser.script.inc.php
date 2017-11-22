@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.5.0');
+define('DMN_VERSION','1.5.1');
 
 xecho('dmnblockparser v'.DMN_VERSION."\n");
 if (file_exists(DMN_BLOCKPARSER_SEMAPHORE) && (posix_getpgid(intval(file_get_contents(DMN_BLOCKPARSER_SEMAPHORE))) !== false) ) {
@@ -438,10 +438,13 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
       $block = json_decode(file_get_contents("/dev/shm/$uname/$blockfile"),true);
       $minprotocol = 0;
       $maxprotocol = 9999999999;
-      if ($block["version"] == 536870912) {
+      if ($block["version"] == 536870914) {
+        $minprotocol = 70208;
+      }
+      else if ($block["version"] == 536870912) {
         $minprotocol = 70206;
       }
-      if ($block["version"] == 3) {
+      else if ($block["version"] == 3) {
           $maxprotocol = 70103;
       }
       if (($block !== false) && isset($block) && array_key_exists('height',$block)) {
@@ -626,6 +629,7 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                         "SuperblockDetails" => $mnsb2details,
                         "BlockDarkSendTXCount" => 0,
                         "MemPoolDarkSendTXCount" => 0,
+                        "BlockVersion" => $block['version']
                         );
                     echo "$mnpayee ($mnpaid DASH) - ";
                   }
@@ -656,10 +660,11 @@ function dmn_blockparse($uname, $testnet, $mnpubkeys, $mndonations, $poolpubkeys
                         "SuperblockDetails" => $mnsb2details,
                         "BlockDarkSendTXCount" => 0,
                         "MemPoolDarkSendTXCount" => 0,
+                        "BlockVersion" => $block['version']
                         );
                     echo "Unpaid - ";
                   }
-                  echo "PV=$protocol - ";
+                  echo "PV=$protocol - BV=".$block['version']." - ";
                 }
               }
             }
