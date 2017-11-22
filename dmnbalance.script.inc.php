@@ -23,7 +23,7 @@ if ((!defined('DMN_SCRIPT')) || (DMN_SCRIPT !== true)) {
   die('This is part of the dmnctl script, run it from there.');
 }
 
-DEFINE('DMN_VERSION','2.2.0');
+DEFINE('DMN_VERSION','2.3.0');
 
 xecho("dmnbalance v".DMN_VERSION."\n");
 if (file_exists(DMN_BALANCE_SEMAPHORE) && (posix_getpgid(intval(file_get_contents(DMN_BALANCE_SEMAPHORE))) !== false) ) {
@@ -33,7 +33,7 @@ if (file_exists(DMN_BALANCE_SEMAPHORE) && (posix_getpgid(intval(file_get_content
 file_put_contents(DMN_BALANCE_SEMAPHORE,sprintf('%s',getmypid()));
 
 xecho('Retrieving MN info (mainnet): ');
-$result = dmn_api_get('/masternodes',array("testnet"=>0),$response);
+$result = dmn_cmd_get('/masternodes',array("testnet"=>0),$response);
 if ($response['http_code'] == 200) {
   echo "Fetched...";
   $mnlist = json_decode($result,true);
@@ -41,12 +41,12 @@ if ($response['http_code'] == 200) {
     echo " Failed to JSON decode!\n";
     die(200);
   }
-  elseif (!is_array($mnlist) || !array_key_exists('data',$mnlist) || !is_array($mnlist['data'])) {
+  elseif (!is_array($mnlist) || !array_key_exists('data',$mnlist) || !is_array($mnlist['data']) || !array_key_exists('masternodes',$mnlist['data']) || !is_array($mnlist['data']['masternodes'])) {
     echo " Incorrect data!\n";
     die(202);
   }
   $mnpubkeys = array();
-  foreach($mnlist['data'] as $mnip) {
+  foreach($mnlist['data']['masternodes'] as $mnip) {
     $mnpubkeys[] = $mnip['MasternodePubkey'];
   }
   echo " OK (PubKeys: Mainnet=".count($mnpubkeys).")\n";
@@ -65,7 +65,7 @@ else {
   die(201);
 }
 xecho('Retrieving MN info (testnet): ');
-$result = dmn_api_get('/masternodes',array("testnet"=>1),$response);
+$result = dmn_cmd_get('/masternodes',array("testnet"=>1),$response);
 if ($response['http_code'] == 200) {
   echo "Fetched...";
   $mnlist = json_decode($result,true);
@@ -73,12 +73,12 @@ if ($response['http_code'] == 200) {
     echo " Failed to JSON decode!\n";
     die(200);
   }
-  elseif (!is_array($mnlist) || !array_key_exists('data',$mnlist) || !is_array($mnlist['data'])) {
+  elseif (!is_array($mnlist) || !array_key_exists('data',$mnlist) || !is_array($mnlist['data']) || !array_key_exists('masternodes',$mnlist['data']) || !is_array($mnlist['data']['masternodes'])) {
     echo " Incorrect data!\n";
     die(202);
   }
   $tnpubkeys = array();
-  foreach($mnlist['data'] as $mnip) {
+  foreach($mnlist['data']['masternodes'] as $mnip) {
     $tnpubkeys[] = $mnip['MasternodePubkey'];
   }
   echo " OK (PubKeys: Testnet=".count($tnpubkeys).")\n";
