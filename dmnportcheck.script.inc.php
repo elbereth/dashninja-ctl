@@ -23,7 +23,7 @@ if ((!defined('DMN_SCRIPT')) || (DMN_SCRIPT !== true)) {
   die('This is part of the dmnctl script, run it from there.');
 }
 
-DEFINE('DMN_VERSION','2.2.0');
+DEFINE('DMN_VERSION','2.3.0');
 
 // Execute port check commands
 function dmn_portcheck_mt(&$commands) {
@@ -161,7 +161,7 @@ if ($argv[1] == 'nodb') {
 }
 else {
   xecho('Retrieving MN info (mainnet): ');
-  $result = dmn_api_get('/masternodes',array(),$response);
+  $result = dmn_cmd_get('/masternodes',array(),$response);
   if ($response['http_code'] == 200) {
     echo "Fetched...";
     $mnlist = json_decode($result,true);
@@ -169,12 +169,12 @@ else {
       echo " Failed to JSON decode!\n";
       die(200);
     }
-    elseif (!is_array($mnlist) || !array_key_exists('data',$mnlist) || !is_array($mnlist['data'])) {
+    elseif (!is_array($mnlist) || !array_key_exists('data',$mnlist) || !is_array($mnlist['data']) || !array_key_exists('masternodes',$mnlist['data']) || !is_array($mnlist['data']['masternodes'])) {
       echo " Incorrect data!\n";
       die(202);
     }
     $mnips = array();
-    foreach($mnlist['data'] as $mnip) {
+    foreach($mnlist['data']['masternodes'] as $mnip) {
       $mnips[] = $mnip['MasternodeIP'].'-'.$mnip['MasternodePort'].'-0';
     }
     echo " OK (".count($mnips)." masternodes)\n";
@@ -192,7 +192,7 @@ else {
     die(201);
   }
   xecho('Retrieving MN info (testnet): ');
-  $result = dmn_api_get('/masternodes',array("testnet" => 1),$response);
+  $result = dmn_cmd_get('/masternodes',array("testnet" => 1),$response);
   if ($response['http_code'] == 200) {
     echo "Fetched...";
     $mnlist = json_decode($result,true);
@@ -200,11 +200,11 @@ else {
       echo " Failed to JSON decode!\n";
       die(200);
     }
-    elseif (!is_array($mnlist) || !array_key_exists('data',$mnlist) || !is_array($mnlist['data'])) {
+    elseif (!is_array($mnlist) || !array_key_exists('data',$mnlist) || !is_array($mnlist['data']) || !array_key_exists('masternodes',$mnlist['data']) || !is_array($mnlist['data']['masternodes'])) {
       echo " Incorrect data!\n";
       die(202);
     }
-    foreach($mnlist['data'] as $mnip) {
+    foreach($mnlist['data']['masternodes'] as $mnip) {
       $mnips[] = $mnip['MasternodeIP'].'-'.$mnip['MasternodePort'].'-1';
     }
     echo " OK (".count($mnlist['data'])." masternodes)\n";
@@ -233,12 +233,16 @@ else {
     $mnsubver[$row['NodeIP'].'-'.$row['NodePort'].'-'.$row['NodeTestNet']] = $row['NodeSubVer'];
     if (in_array($row['NodeIP'].'-'.$row['NodePort'].'-'.$row['NodeTestNet'],$mnips)) {
       $numok++;
+      echo "[".$row['NodeTestNet']."] ".$row['NodeIP'].':'.$row['NodePort']." - ".$row['NextCheck']." - ";
       $date = new DateTime($row['NextCheck']);
       $row['NextCheck'] = $date->getTimestamp();
+      echo time()." > ".$row['NextCheck']." = ";
       if ( (time() > $row['NextCheck']) ) {
+        echo "True\n";
         $mnpc[] = $row['NodeIP'].'-'.$row['NodePort'].'-'.$row['NodeTestNet'];
       }
       else {
+        echo "False\n";
         $mnpcnot[] = $row['NodeIP'].'-'.$row['NodePort'].'-'.$row['NodeTestNet'];
       }
     }
