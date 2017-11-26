@@ -20,17 +20,16 @@
 # Disable logging by default
 blockdegapperlog=/dev/null
 blockparserlog=/dev/null
-block24hgenlog=/dev/null
+blocksjsonlog=/dev/null
 
 # If parameter 1 is log then enable logging
 if [[ "$1" == "log" ]]; then
-  rundate=$(date +%Y%m%d%H%M%S)
-  blockdegapperlog=/var/log/dmn/blockdegapper.$rundate.log
-  blockparserlog=/var/log/dmn/blockparser.$rundate.log
-  block24hgenlog=/var/log/dmn/block24hgen.$rundate.log
+  blockdegapperlog=/var/log/dmn/blockdegapper.log
+  blocksjsonlog=/var/log/dmn/blocksjson.log
 fi
 
 # Sequentially run scripts
 /usr/bin/nice -n 14 /opt/dmnctl/dmnblockdegapper main >> $blockdegapperlog
 /usr/bin/nice -n 14 /opt/dmnctl/dmnblockparser >> $blockparserlog
-/usr/bin/nice -n 14 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main blocks24h >> $block24hgenlog
+/usr/bin/nice -n 14 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main blocks24h >> $blocksjsonlog
+/usr/bin/nice -n 14 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main blockssuperblocks >> $blocksjsonlog
