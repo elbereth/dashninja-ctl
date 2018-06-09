@@ -23,10 +23,10 @@ namespace Dash;
 
 use Exception;
 
-define('PROTOCOL_VERSION',70103);
+define('PROTOCOL_VERSION',70208);
 define('PROTOCOL_MAGIC',"\xbf\x0c\x6b\xbd");
 define('HRVERSION',"/Dash Core:%s/Dash Ninja Port Checker:%s.%d/");
-define('THISVERSION',4);
+define('THISVERSION',5);
 
 function strToHex($string){
     $hex = '';
@@ -52,7 +52,7 @@ class Node {
         private $subver;
         private $prot_magic;
 
-	public function __construct($ip, $port = 9999, $timeout = 5, $versionid = '1.0.0', $sversionid = '0.12.0.53', $protver = PROTOCOL_VERSION, $prot_magic = PROTOCOL_MAGIC) {
+	public function __construct($ip, $port = 9999, $timeout = 5, $versionid = '1.0.0', $sversionid = '0.12.2.2', $protver = PROTOCOL_VERSION, $prot_magic = PROTOCOL_MAGIC) {
 		$this->sock = @fsockopen($ip, $port, $errno, $errstr, $timeout);
 		if (!$this->sock) throw new Exception($errstr, $errno);
 
@@ -71,6 +71,9 @@ class Node {
 					if ($this->version != 0) throw new Exception('Got version packet twice!');
 					$this->_decodeVersionPayload($pkt['payload']);
 					break;
+				case 'reject':
+					$rejectinfo = $this->_decodeRejectPayload($pkt['payload']);
+                    throw new EUnexpectedPacketType($pkt['type'].' ['.bin2hex($pkt['type']).'] message='.$rejectinfo["message"].' ccode='.dechex($rejectinfo["ccode"]).' reason='.$rejectinfo["reason"]);
 				default:
 					throw new EUnexpectedPacketType($pkt['type'].' ['.bin2hex($pkt['type']).']');
 			}
@@ -169,7 +172,20 @@ class Node {
 			fwrite($this->sock, $this->_makePacket('verack', NULL));
 	}
 
-	public function readPacket($noqueue = false) {
+    protected function _decodeRejectPayload($data) {
+        $tmp = unpack("cmsgsize",substr($data,0,1));
+        $message = substr($data,1,$tmp["msgsize"]);
+        $tmp = unpack("Cccode",substr($data,$tmp["msgsize"]+1,1));
+        $ccode = $tmp["ccode"];
+        $tmp = unpack("cmsgsize",substr($data,$tmp["msgsize"]+2,1));
+        $reason = substr($data,$tmp["msgsize"]+3,$tmp["msgsize"]);
+
+        return array("message" => $message,
+			         "ccode" => $ccode,
+			         "reason" => $reason);
+    }
+
+    public function readPacket($noqueue = false) {
 		if ((!$noqueue) && ($this->queue)) return array_shift($this->queue);
 		$data = fread($this->sock, 20);
 		if ($data === false) throw new EFailedToReadFromPeer('Failed to read from peer');
@@ -213,6 +229,7 @@ class Node {
 		$data .= $this->myself;
 		$data .= $this->_string(sprintf(HRVERSION,$sstr,$str,THISVERSION));
 		$data .= pack('V', $nBestHeight);
+        $data .= pack('c', 0);
 
 		return $this->_makePacket('version', $data);
 	}

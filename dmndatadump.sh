@@ -23,31 +23,28 @@ statuslog=/dev/null
 votesrrdlog=/dev/null
 balancelog=/dev/null
 portchecklog=/dev/null
+blockparserlog=/dev/null
 autoupdatelog=/dev/null
 
 # If parameter 1 is log then enable logging
 if [[ "$1" == "log" ]]; then
-  updatelog=/var/log/dmn/update.log
-  statuslog=/var/log/dmn/status.log
-  votesrrdlog=/var/log/dmn/votesrrd.log
-  balancelog=/var/log/dmn/balance.log
-  portchecklog=/var/log/dmn/portcheck.log
-  autoupdatelog=/var/log/dmn/autoupdate.log
+  rundate=$(date +%Y%m%d%H%M%S)
+  updatelog=/var/log/dmn/update.$rundate.log
+  statuslog=/var/log/dmn/status.$rundate.log
+  votesrrdlog=/var/log/dmn/votesrrd.$rundate.log
+  balancelog=/var/log/dmn/balance.$rundate.log
+  portchecklog=/var/log/dmn/portcheck.$rundate.log
+  blockparserlog=/var/log/dmn/blockparser.$rundate.log
+  autoupdatelog=/var/log/dmn/autoupdate.$rundate.log
 fi
 
 # Sequentially run scripts
 #/opt/dmnctl/dashdupdate >> $updatelog
 /opt/dmnctl/dmnctl status >> $statuslog
 #/opt/dmnctl/dmnvotesrrd >> $votesrrdlog
-/usr/bin/php /opt/dmnctl/dmndbgen masternodeactive >> $statuslog
-/usr/bin/php /home/dash-mnwww/www/main/api/cron.php main nodesstatus >> $statuslog
-/usr/bin/php /home/dash-mnwww/www/main/api/cron.php main blocksconsensus >> $statuslog
-/usr/bin/php /home/dash-mnwww/www/main/api/cron.php main votelimit >> $statuslog
-/usr/bin/php /home/dash-mnwww/www/main/api/cron.php main masternodeslistfull >> $statuslog
-/usr/bin/php /home/dash-mnwww/www/main/api/cron.php main governanceproposals >> $statuslog
-/usr/bin/php /home/dash-mnwww/www/main/api/cron.php main governancetriggers >> $statuslog
+/opt/dmnctl/dmnblockparser >> $blockparserlog
 
 # Concurrently run scripts
-/usr/bin/nice -n 18 /opt/dmnctl/dmnbalance >> $balancelog &
-/usr/bin/nice -n 19 /opt/dmnctl/dmnportcheck db >> $portchecklog &
-/usr/bin/nice -n 15 /opt/dmnctl/dmnautoupdate >> $autoupdatelog &
+/opt/dmnctl/dmnbalance >> $balancelog &
+/opt/dmnctl/dmnportcheck db >> $portchecklog &
+/opt/dmnctl/dmnautoupdate >> $autoupdatelog &

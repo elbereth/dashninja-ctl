@@ -23,7 +23,7 @@ define('DMN_DIR',__DIR__);
 
 // Display log line (with date)
 function xecho($line) {
-  echo date('Y-m-d H:i:s').' - '.$line;
+  echo "\033[0;37m".date('Y-m-d H:i:s')."\033[1;30m - \e[1;37m".$line."\033[0m";
 }
 
 // Check if PID is running and is dashd
@@ -190,10 +190,10 @@ function dmn_cmd_post($command,$payload,&$response) {
   if ($payloadjson === false) {
     return false;
   }
-  curl_setopt( $ch, CURLOPT_HTTPHEADER, array(
+/*  curl_setopt( $ch, CURLOPT_HTTPHEADER, array(
       'Content-Type: application/json',
       'Content-Length: ' . strlen($payloadjson))
-  );
+  );*/
 
 //  curl_setopt( $ch, CURLOPT_POSTFIELDSIZE, strlen($payloadjson));
   curl_setopt( $ch, CURLOPT_POSTFIELDS, $payloadjson );
@@ -259,6 +259,23 @@ function delTree($dir) {
 function xechoToFile($logfile,$line) {
   $data = date('Y-m-d H:i:s').' - '.$line;
   file_put_contents($logfile,$data,FILE_APPEND);
+}
+
+// Die but delete semaphore file before
+function die2($retcode,$semaphorefile) {
+    unlink($semaphorefile);
+    die($retcode);
+}
+
+// Check and set semaphore file
+function semaphore($semaphore) {
+
+    if (file_exists($semaphore) && (posix_getpgid(intval(file_get_contents($semaphore))) !== false) ) {
+        xecho("Already running (PID ".sprintf('%d',file_get_contents($semaphore)).")\n");
+        die(10);
+    }
+    file_put_contents($semaphore,sprintf('%s',getmypid()));
+
 }
 
 ?>

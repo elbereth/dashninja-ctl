@@ -23,7 +23,7 @@ if ((!defined('DMN_SCRIPT')) || (DMN_SCRIPT !== true)) {
   die('This is part of the dmnctl script, run it from there.');
 }
 
-DEFINE('DMN_VERSION','2.1.1');
+DEFINE('DMN_VERSION','2.2.0');
 
 function dmn_checkportopen($ip, $port, $testnet, $config, &$subver, &$errmsg) {
 

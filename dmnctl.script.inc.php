@@ -750,7 +750,7 @@ function dmn_status($dmnpid,$istestnet) {
   $protocolinfo = array();
   $curprotocol = 0;
   $oldprotocol = 99999;
-  $mnstatusexvalues = array('ENABLED','EXPIRED','VIN_SPENT','REMOVE','POS_ERROR','','PRE_ENABLED','WATCHDOG_EXPIRED','NEW_START_REQUIRED','UPDATE_REQUIRED');
+  $mnstatusexvalues = array('ENABLED','EXPIRED','VIN_SPENT','REMOVE','POS_ERROR','','PRE_ENABLED','WATCHDOG_EXPIRED','NEW_START_REQUIRED','UPDATE_REQUIRED','POSE_BAN');
 
   $wsstatus = array();
 
@@ -788,7 +788,7 @@ function dmn_status($dmnpid,$istestnet) {
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
     $uname = $dmnpidinfo['uname'];
     // Only vh 3+
-    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '') && ($dmnpidinfo['versionhandling'] >= 3)) {
+    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '') && ($dmnpidinfo['versionhandling'] >= 3) && ($dmnpidinfo['type'] != 'p2pool')) {
       $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "mnlistfull",
@@ -1182,14 +1182,11 @@ function dmn_status($dmnpid,$istestnet) {
         // Retrieve the IP from the node
         $ip = dmn_getip($dmnpidinfo['pid'],$uname);
         $dmnip = $ip;
-        $ipexp = explode(':',$ip);
-        $iponly = $ipexp[0];
         $country = dmn_getcountry($ip,$countrycode);
         if ($country === false) {
           $country = 'Unknown';
           $countrycode = '__';
         }
-        $port = $ipexp[1];
 
         // Default values
         $processstatus = 'running';
@@ -1353,7 +1350,7 @@ function dmn_status($dmnpid,$istestnet) {
               }
           }
           // gobject proposals and triggers handling (4) [v12.1]
-          elseif ($dmnpidinfo['versionhandling'] == 4) {
+          elseif (($dmnpidinfo['versionhandling'] == 4) && ($dmnpidinfo['type'] != 'p2pool')) {
               // Store the next superblock
               if (($governancenextsb[$dashdinfo['testnet']] === false) || ($governancenextsb[$dashdinfo['testnet']] > intval($dmnpidinfo['getgovernanceinfo']['nextsuperblock']))) {
                 $governancenextsb[$dashdinfo['testnet']] = intval($dmnpidinfo['getgovernanceinfo']['nextsuperblock']);
@@ -1464,7 +1461,12 @@ function dmn_status($dmnpid,$istestnet) {
           }
 
           // Parse the masternode list
-          $mn3listfull = $dmnpidinfo['mnlistfull'];
+          if ($dmnpidinfo['type'] == 'p2pool') {
+              $mn3listfull = array();
+          }
+          else {
+              $mn3listfull = $dmnpidinfo['mnlistfull'];
+          }
           foreach($mn3listfull as $mn3output => $mn3data) {
               // Remove all extra spaces
             $mn3data = trim($mn3data);

@@ -23,7 +23,7 @@ if ((!defined('DMN_SCRIPT')) || (DMN_SCRIPT !== true)) {
   die('This is part of the dmnctl script, run it from there.');
 }
 
-DEFINE('DMN_VERSION','2.3.0');
+DEFINE('DMN_VERSION','2.3.1');
 
 // Execute port check commands
 function dmn_portcheck_mt(&$commands) {
@@ -103,7 +103,7 @@ function dmn_portcheck_mt(&$commands) {
 
 xecho("dmnportcheck v".DMN_VERSION."\n");
 if (($argc < 2) || (($argv[1] != 'db') && ($argv[1] != 'nodb'))) {
-  xecho("Usage: ".basename($argv[0])." [no]db [ip:port:testnet]+\n");
+  xecho("Usage: ".basename($argv[0])." [no]db [ip-port-testnet]+\n");
   die();
 }
 
