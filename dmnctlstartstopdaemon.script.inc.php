@@ -36,8 +36,8 @@ function dmn_start($uname,$conf,$dashd,$extra="") {
     $res = true;
   }
   else {
-    $dmnenabled = ($conf->getmnctlconfig('enable') == 1);
-    if ($dmnenabled) {
+//    $dmnenabled = ($conf->getmnctlconfig('enable') == 1);
+//    if ($dmnenabled) {
       $RUNASUID = dmn_getuid($uname,$RUNASGID);
       if ($testnet) {
         $nice = DMN_NICELEVEL_TEST;
@@ -49,7 +49,7 @@ function dmn_start($uname,$conf,$dashd,$extra="") {
       $res = false;
       while ((!$res) && (!dmn_checkpid(dmn_getpid($uname,$testnet))) && ($trycount < 3)) {
         echo "T$trycount.";
-        exec("/sbin/start-stop-daemon -S -c $RUNASUID:$RUNASGID -N " . $nice . " -x " . $dashd . " -u $RUNASUID -a " . $dashd . " -q -b -- -daemon $extra");
+        exec("/sbin/start-stop-daemon -S -c $RUNASUID:$RUNASGID -N " . $nice . " -x /usr/bin/env MALLOC_ARENA_MAX=1 " . $dashd . " -u $RUNASUID -a " . $dashd . " -q -b -- -daemon $extra");
         usleep(250000);
         $waitcount = 0;
         while ((!dmn_checkpid(dmn_getpid($uname, $testnet))) && ($waitcount < DMN_STOPWAIT)) {
@@ -66,11 +66,11 @@ function dmn_start($uname,$conf,$dashd,$extra="") {
           echo "Could not start!";
         };
       }
-    }
-    else {
-      echo "DISABLED";
-      $res = true;
-    }
+//    }
+//    else {
+//      echo "DISABLED";
+//      $res = true;
+//    }
   }
   return $res;
 
