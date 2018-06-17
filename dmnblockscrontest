@@ -18,24 +18,18 @@
 #
 
 # Disable logging by default
-statuslog=/dev/null
+blockdegapperlog=/dev/null
+blockparserlog=/dev/null
+blocksjsonlog=/dev/null
 
 # If parameter 1 is log then enable logging
 if [[ "$1" == "log" ]]; then
-  rundate=$(date +%Y%m%d%H%M%S)
-  statuslog=/var/log/dmn/status.$rundate.log
+  blockdegapperlog=/var/log/dmn/blockdegapper.log
+  blocksjsonlog=/var/log/dmn/blocksjson.log
 fi
 
 # Sequentially run scripts
-/opt/dmnctl/dmnctl status testnet >> $statuslog
-/usr/bin/php /opt/dmnctl/dmndbgen masternodeactive >> $statuslog
-/usr/bin/php /home/dash-www/www/api/cron.php test nodesstatus >> $statuslog
-/usr/bin/php /home/dash-www/www/api/cron.php test blocksconsensus >> $statuslog
-/usr/bin/php /home/dash-www/www/api/cron.php test votelimit >> $statuslog
-/usr/bin/php /home/dash-www/www/api/cron.php test masternodeslistfull >> $statuslog
-/usr/bin/php /home/dash-www/www/api/cron.php test governanceproposals >> $statuslog
-/usr/bin/php /home/dash-www/www/api/cron.php test governancetriggers >> $statuslog
-
-/usr/bin/nice -n 19 /opt/dmnctl/dmnportcheck db >> $portchecklog &
-/usr/bin/nice -n 18 /opt/dmnctl/dmnbalance >> $balancelog &
-
+/usr/bin/nice -n 14 /opt/dmnctl/dmnblockdegapper test >> $blockdegapperlog
+/usr/bin/nice -n 14 /opt/dmnctl/dmnblockparser >> $blockparserlog
+/usr/bin/nice -n 14 /usr/bin/php /home/dash-www/www/api/cron.php test blocks24h >> $blocksjsonlog
+/usr/bin/nice -n 14 /usr/bin/php /home/dash-www/www/api/cron.php test blockssuperblocks >> $blocksjsonlog

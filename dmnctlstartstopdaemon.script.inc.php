@@ -36,8 +36,8 @@ function dmn_start($uname,$conf,$dashd,$extra="") {
     $res = true;
   }
   else {
-    $dmnenabled = ($conf->getmnctlconfig('enable') == 1);
-    if ($dmnenabled) {
+//    $dmnenabled = ($conf->getmnctlconfig('enable') == 1);
+//    if ($dmnenabled) {
       $RUNASUID = dmn_getuid($uname,$RUNASGID);
       if ($testnet) {
         $nice = DMN_NICELEVEL_TEST;
@@ -66,11 +66,11 @@ function dmn_start($uname,$conf,$dashd,$extra="") {
           echo "Could not start!";
         };
       }
-    }
-    else {
-      echo "DISABLED";
-      $res = true;
-    }
+//    }
+//    else {
+//      echo "DISABLED";
+//      $res = true;
+//    }
   }
   return $res;
 
