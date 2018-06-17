@@ -57,8 +57,11 @@ DEFINE('DMN_NRCOUNTLOG','/var/log/dmn/nrcount.log');
 // Parallel threads (for start-stop and RPC commands)
 DEFINE('DMN_THREADS_MAX',8);
 
-DEFINE('DMN_CTLSTATUSAUTO_MAIN_SEMAPHORE','/var/run/dmnctlstatusauto0.pid');
-DEFINE('DMN_CTLSTATUSAUTO_TEST_SEMAPHORE','/var/run/dmnctlstatusauto1.pid');
+// Semaphores
+//   ctl auto status
+DEFINE('DMN_CTLSTATUSAUTO_SEMAPHORE','/var/run/dmnctlstatusauto%d.pid');
+//   dbgen
+DEFINE('DMN_DBGEN_SEMAPHORE','/var/run/dmndbgen.pid');
 
 // Port checker specifics
 //  Semaphore for multi-threading (only allow 1 instance)

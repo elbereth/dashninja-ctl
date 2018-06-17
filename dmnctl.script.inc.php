@@ -476,7 +476,7 @@ function dmn_create($dmnpid,$ip,$forcename = '') {
   if ($forcename == '') {
     echo "Forcing $forcename: ";
     $newnum = intval(substr($dmnpid[count($dmnpid)-1]['uname'],5,2))+1;
-    $newuname = DMNPIDPREFIX.str_pad($newnum,2,'0',STR_PAD_LEFT);
+    $newuname = DMN_PID_PREFIX.str_pad($newnum,2,'0',STR_PAD_LEFT);
   }
   else {
     $newuname = $forcename;
