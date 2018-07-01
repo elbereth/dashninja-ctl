@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-define('DMN_VERSION','1.2.4');
+define('DMN_VERSION','1.2.5');
 
 // Start the masternodes
 function dmn_start($uname,$conf,$dashd,$extra="") {
@@ -49,7 +49,7 @@ function dmn_start($uname,$conf,$dashd,$extra="") {
       $res = false;
       while ((!$res) && (!dmn_checkpid(dmn_getpid($uname,$testnet))) && ($trycount < 3)) {
         echo "T$trycount.";
-        exec("/sbin/start-stop-daemon -S -c $RUNASUID:$RUNASGID -N " . $nice . " -x /usr/bin/env MALLOC_ARENA_MAX=1 " . $dashd . " -u $RUNASUID -a " . $dashd . " -q -b -- -daemon $extra");
+        exec("/sbin/start-stop-daemon -S -c $RUNASUID:$RUNASGID -N " . $nice . " -x /usr/bin/env MALLOC_ARENA_MAX=1 " . $dashd . " -u $RUNASUID -a " . $dashd . " -q -- -daemon $extra");
         usleep(250000);
         $waitcount = 0;
         while ((!dmn_checkpid(dmn_getpid($uname, $testnet))) && ($waitcount < DMN_STOPWAIT)) {

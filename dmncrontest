@@ -19,11 +19,15 @@
 
 # Disable logging by default
 statuslog=/dev/null
+portchecklog=/dev/null
+balancelog=/dev/null
 
 # If parameter 1 is log then enable logging
 if [[ "$1" == "log" ]]; then
   rundate=$(date +%Y%m%d%H%M%S)
   statuslog=/var/log/dmn/status.$rundate.log
+  portchecklog=/var/log/dmn/status.$rundate.log
+  balancelog=/var/log/dmn/status.$rundate.log
 fi
 
 # Sequentially run scripts

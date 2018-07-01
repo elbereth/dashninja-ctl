@@ -429,7 +429,10 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
     else {
       echo "Error (Failed to move)\n";
     }
-    if ((substr($versionraw,0,7) == '0.12.1.') || (substr($versionraw,0,7) == '0.12.2.')) {
+    if (substr($versionraw,0,6) == '0.12.3') {
+      $versionhandling = 5;
+    }
+    elseif ((substr($versionraw,0,7) == '0.12.1.') || (substr($versionraw,0,7) == '0.12.2.')) {
       $versionhandling = 4;
     }
     elseif (substr($versionraw,0,5) == '0.12.') {
@@ -476,7 +479,7 @@ function dmn_create($dmnpid,$ip,$forcename = '') {
   if ($forcename == '') {
     echo "Forcing $forcename: ";
     $newnum = intval(substr($dmnpid[count($dmnpid)-1]['uname'],5,2))+1;
-    $newuname = DMN_PID_PREFIX.str_pad($newnum,2,'0',STR_PAD_LEFT);
+    $newuname = DMNPIDPREFIX.str_pad($newnum,2,'0',STR_PAD_LEFT);
   }
   else {
     $newuname = $forcename;
@@ -1545,7 +1548,7 @@ function dmn_status($dmnpid,$istestnet) {
                                                                          "MasternodeLastSeen" => intval($mn3lastseen),
                                                                          "MasternodeActiveSeconds" => intval($mn3activeseconds),
                                                                          "MasternodeLastPaid" => $mn3lastpaid,
-                                                                         "MasternodeLastPaidBlock" => $mn4lastpaidblock,
+                                                                         "MasternodeLastPaidBlock" => intval($mn4lastpaidblock),
                                                                          "MasternodeDaemonVersion" => $mn5daemonversion,
                                                                          "MasternodeSentinelVersion" => $mn5sentinelversion,
                                                                          "MasternodeSentinelState" => $mn5sentinelstate);
@@ -1761,7 +1764,11 @@ function dmn_status($dmnpid,$istestnet) {
                            "MasternodePort" => $mninfo["MasternodePort"],
                            "MasternodeLastSeen" => $mninfo["MasternodeLastSeen"],
                            "MasternodeActiveSeconds" => $mninfo["MasternodeActiveSeconds"],
-                           "MasternodeLastPaid" => $mninfo["MasternodeLastPaid"]);
+                           "MasternodeLastPaid" => $mninfo["MasternodeLastPaid"],
+                           "MasternodeLastPaidBlock" => $mninfo["MasternodeLastPaidBlock"],
+                           "MasternodeDaemonVersion" => $mninfo["MasternodeDaemonVersion"],
+                           "MasternodeSentinelVersion" => $mninfo["MasternodeSentinelVersion"],
+                           "MasternodeSentinelState" => $mninfo["MasternodeSentinelState"]);
     }
 
     $wsmnlist2 = array();
