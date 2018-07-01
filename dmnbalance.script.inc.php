@@ -170,6 +170,9 @@ foreach($tnpubkeys as $tnpubkey) {
 
 echo "OK (Testnet: $numtok known/".count($tncheck)." to-[re]check & Mainnet: $numok known/".count($mncheck)." to-[re]check)\n";
 
+$mncheck = array_unique($mncheck);
+$tncheck = array_unique($tncheck);
+
 $payload = array();
 $numdone = 0;
 $numtot = count($mncheck)+count($tncheck);
