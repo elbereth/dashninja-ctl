@@ -27,7 +27,7 @@ require_once('DashConfig.class.php');
 require_once('dmn.config.inc.php');
 require_once('dashblocknotify.config.inc.php');
 
-define('DASHBLOCKRETRIEVE','0.2.1-beta');
+define('DASHBLOCKRETRIEVE','0.2.2-beta');
 
 function xecho($line) {
   echo date('Y-m-d H:i:s').' - '.$line;
@@ -75,9 +75,17 @@ for ($x = $blockidfrom; $x <= $blockidto; $x++) {
   xecho(" Block ID#$x: ");  
   $blockhash = $rpc->getblockhash($x);
   if ($blockhash !== false) {
-    echo $blockhash." ";
-    $blockjson = $rpc->getblock($blockhash);
-    if ($blockjson !== false) {
+    echo $blockhash;
+    $try = 0;
+    do {
+        echo ".";
+        $blockjson = $rpc->getblock($blockhash);
+        if (is_null($blockjson)) {
+            usleep(200000*$try+100000);
+        }
+        $try++;
+    } while (is_null($blockjson) && ($try <= 10));
+    if (($blockjson !== false) || (is_null($blockjson))) {
       if (!is_dir($outdir."/$uname")) {
         mkdir($outdir."/$uname",0777,true);
       }
