@@ -104,7 +104,7 @@ else {
       xecho(sprintf("#%'.03d",$id+1)." ($gap): ");
       $output = array();
       $result = 0;
-      $lastline = exec("/usr/bin/timeout 10 ".DMN_DIR."/dashblockretrieve $uname $gap",$output,$result);
+      $lastline = exec("/usr/bin/timeout 60 ".DMN_DIR."/dashblockretrieve $uname $gap",$output,$result);
       if ($result == 0) {
         echo "OK";
       }
