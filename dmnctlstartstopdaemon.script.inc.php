@@ -49,7 +49,7 @@ function dmn_start($uname,$conf,$dashd,$extra="") {
       $res = false;
       while ((!$res) && (!dmn_checkpid(dmn_getpid($uname,$testnet))) && ($trycount < 3)) {
         echo "T$trycount.";
-        exec("/sbin/start-stop-daemon -S -c $RUNASUID:$RUNASGID -N " . $nice . " -x /usr/bin/env MALLOC_ARENA_MAX=1 " . $dashd . " -u $RUNASUID -a " . $dashd . " -q -- -daemon $extra");
+        exec("/sbin/start-stop-daemon -S -c $RUNASUID:$RUNASGID -N " . $nice . " -x /usr/bin/env MALLOC_ARENA_MAX=1 " . $dashd . " -u $RUNASUID -q -- -daemon $extra");
         usleep(250000);
         $waitcount = 0;
         while ((!dmn_checkpid(dmn_getpid($uname, $testnet))) && ($waitcount < DMN_STOPWAIT)) {
