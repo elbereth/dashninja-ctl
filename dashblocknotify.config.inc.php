@@ -22,22 +22,10 @@
 // Indicate for each of your nodes which one you need to retrieve blocktemplate from (bt) and/or block info (block)
 // Best practice for now is only retrieve block from one node and blocktemplate from all
 $unamelist = array(
-       'tdmn01' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn02' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn03' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn04' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn05' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn06' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn07' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn08' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn09' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn10' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn11' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn12' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn13' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn14' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tdmn15' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'tfaucet' => array('bt' => true,   'block' => true,   'mempool' => true),
+       'dmn01' => array('bt' => true,   'block' => false,   'mempool' => false),
+       'dmn02' => array('bt' => true,   'block' => false,   'mempool' => false),
+       'dmn03' => array('bt' => true,   'block' => false,   'mempool' => false),
+       'p2pool' => array('bt' => true,   'block' => true,   'mempool' => true),
 );
 
 ?>
