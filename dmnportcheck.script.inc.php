@@ -23,7 +23,7 @@ if ((!defined('DMN_SCRIPT')) || (DMN_SCRIPT !== true)) {
   die('This is part of the dmnctl script, run it from there.');
 }
 
-DEFINE('DMN_VERSION','2.3.1');
+DEFINE('DMN_VERSION','2.3.2');
 
 // Execute port check commands
 function dmn_portcheck_mt(&$commands) {
@@ -82,7 +82,7 @@ function dmn_portcheck_mt(&$commands) {
     // Execute the command in a thread
     while ((count($threads) < DMN_THREADS_MAX) && ($commandsdone < count($commands))) {
       $pipes[$commandsdone] = array();
-      $thres[$commandsdone] = proc_open(DMN_DIR.'/dmnportcheckdo '.$commands[$commandsdone]['cmd'].' '.$commands[$commandsdone]['file'],$descriptorspec,$pipes[$commandsdone]);
+      $thres[$commandsdone] = proc_open('/usr/bin/timeout 30 '.DMN_DIR.'/dmnportcheckdo '.$commands[$commandsdone]['cmd'].' '.$commands[$commandsdone]['file'],$descriptorspec,$pipes[$commandsdone]);
       if (is_resource($thres[$commandsdone])) {
         $threads[] = array('cid' => $commandsdone, 'res' => $thres[$commandsdone]);
         $commandsdone++;
