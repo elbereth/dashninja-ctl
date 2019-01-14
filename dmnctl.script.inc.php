@@ -1013,7 +1013,7 @@ function dmn_status($dmnpid,$istestnet) {
               "file" => "/dev/shm/dmnctl/$uname.$tmpdate.mnbudget_getvotes_$mnbudgetid.json");
         }
       }
-      elseif ($dmnpidinfo['versionhandling'] == 4) {
+      elseif ($dmnpidinfo['versionhandling'] >= 4) {
         if  (array_key_exists("getgovernanceinfo",$dmnpidinfo) && is_array($dmnpidinfo["getgovernanceinfo"])) {
             $commands[] = array("status" => 0,
                 "dmnnum" => $dmnnum,
@@ -1363,7 +1363,8 @@ function dmn_status($dmnpid,$istestnet) {
               }
           }
           // gobject proposals and triggers handling (4) [v12.1]
-          elseif (($dmnpidinfo['versionhandling'] == 4) && ($dmnpidinfo['type'] != 'p2pool')) {
+          elseif (($dmnpidinfo['versionhandling'] >= 4) && ($dmnpidinfo['type'] != 'p2pool')) {
+              $collateralregexp = "/([\dabcdef]{64})-(\d+)/";
               // Store the next superblock
               if (($governancenextsb[$dashdinfo['testnet']] === false) || ($governancenextsb[$dashdinfo['testnet']] > intval($dmnpidinfo['getgovernanceinfo']['nextsuperblock']))) {
                 $governancenextsb[$dashdinfo['testnet']] = intval($dmnpidinfo['getgovernanceinfo']['nextsuperblock']);
@@ -1395,25 +1396,33 @@ function dmn_status($dmnpid,$istestnet) {
                               foreach ($dmnpidinfo["gobject-getvotes-" . $proposaldata["hash"]] as $gobjectvotehash => $gobjectvotedata) {
                                 list($collateral,$ntime,$vote,$signal) = explode(":",$gobjectvotedata);
                                 if ($signal == "FUNDING") {
+                                  $matches = array();
                                   if ((substr($collateral,0,16) == "CTxIn(COutPoint(") && (substr($collateral,-14) == "), scriptSig=)")) {
                                       $collateral = substr($collateral, 16, strlen($collateral) - 30);
                                       list($mnoutputhash, $mnoutputindex) = explode(", ", $collateral);
-                                      if (array_key_exists($mnoutputhash."-".$mnoutputindex, $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]])) {
-                                          if ($gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash."-".$mnoutputindex]["nTime"] < $ntime) {
-                                              $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash."-".$mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
-                                                  "MasternodeOutputIndex" => intval($mnoutputindex),
-                                                  "VoteHash" => $gobjectvotehash,
-                                                  "nTime" => intval($ntime),
-                                                  "Vote" => $vote);
-                                          }
-                                      } else {
-                                          $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash."-".$mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
-                                              "MasternodeOutputIndex" => intval($mnoutputindex),
-                                              "VoteHash" => $gobjectvotehash,
-                                              "nTime" => intval($ntime),
-                                              "Vote" => $vote);
+                                  }
+                                  elseif (preg_match($collateralregexp,$collateral,$matches) == 1) {
+                                      list($empty, $mnoutputhash, $mnoutputindex) = $matches;
+                                  }
+                                  else {
+                                      $mnoutputhash = false;
+                                  }
+                                  if ($mnoutputhash !== false) {
+                                    if (array_key_exists($mnoutputhash . "-" . $mnoutputindex, $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]])) {
+                                      if ($gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash . "-" . $mnoutputindex]["nTime"] < $ntime) {
+                                        $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash . "-" . $mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
+                                          "MasternodeOutputIndex" => intval($mnoutputindex),
+                                          "VoteHash" => $gobjectvotehash,
+                                          "nTime" => intval($ntime),
+                                          "Vote" => $vote);
                                       }
-
+                                    } else {
+                                      $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash . "-" . $mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
+                                        "MasternodeOutputIndex" => intval($mnoutputindex),
+                                        "VoteHash" => $gobjectvotehash,
+                                        "nTime" => intval($ntime),
+                                        "Vote" => $vote);
+                                    }
                                   }
                                 }
                               }
@@ -1444,26 +1453,34 @@ function dmn_status($dmnpid,$istestnet) {
                               foreach ($dmnpidinfo["gobject-getvotes-" . $triggerdata["hash"]] as $gobjectvotehash => $gobjectvotedata) {
                                   list($collateral,$ntime,$vote,$signal) = explode(":",$gobjectvotedata);
                                   if ($signal == "FUNDING") {
+                                    $matches = array();
                                       if ((substr($collateral,0,16) == "CTxIn(COutPoint(") && (substr($collateral,-14) == "), scriptSig=)")) {
                                           $collateral = substr($collateral, 16, strlen($collateral) - 30);
                                           list($mnoutputhash, $mnoutputindex) = explode(", ", $collateral);
-                                          if (array_key_exists($mnoutputhash."-".$mnoutputindex, $gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]])) {
-                                              if ($gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]][$mnoutputhash."-".$mnoutputindex]["nTime"] < $ntime) {
-                                                  $gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]][$mnoutputhash."-".$mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
-                                                      "MasternodeOutputIndex" => intval($mnoutputindex),
-                                                      "VoteHash" => $gobjectvotehash,
-                                                      "nTime" => intval($ntime),
-                                                      "Vote" => $vote);
-                                              }
-                                          } else {
-                                              $gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]][$mnoutputhash."-".$mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
-                                                  "MasternodeOutputIndex" => intval($mnoutputindex),
-                                                  "VoteHash" => $gobjectvotehash,
-                                                  "nTime" => intval($ntime),
-                                                  "Vote" => $vote);
-                                          }
-
                                       }
+                                      elseif (preg_match($collateralregexp,$collateral,$matches) == 1) {
+                                        list($empty, $mnoutputhash, $mnoutputindex) = $matches;
+                                      }
+                                      else {
+                                        $mnoutputhash = false;
+                                      }
+                                      if ($mnoutputhash !== false) {
+                                      if (array_key_exists($mnoutputhash . "-" . $mnoutputindex, $gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]])) {
+                                        if ($gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]][$mnoutputhash . "-" . $mnoutputindex]["nTime"] < $ntime) {
+                                          $gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]][$mnoutputhash . "-" . $mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
+                                            "MasternodeOutputIndex" => intval($mnoutputindex),
+                                            "VoteHash" => $gobjectvotehash,
+                                            "nTime" => intval($ntime),
+                                            "Vote" => $vote);
+                                        }
+                                      } else {
+                                        $gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]][$mnoutputhash . "-" . $mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
+                                          "MasternodeOutputIndex" => intval($mnoutputindex),
+                                          "VoteHash" => $gobjectvotehash,
+                                          "nTime" => intval($ntime),
+                                          "Vote" => $vote);
+                                      }
+                                    }
                                   }
                               }
                           }
@@ -1472,7 +1489,6 @@ function dmn_status($dmnpid,$istestnet) {
               }
 
           }
-
           // Parse the masternode list
           if ($dmnpidinfo['type'] == 'p2pool') {
               $mn3listfull = array();
