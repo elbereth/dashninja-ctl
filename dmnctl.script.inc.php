@@ -1511,14 +1511,16 @@ function dmn_status($dmnpid,$istestnet) {
 
           // Deterministic Masternode List (ProTx) (6) [v13+]
           if ($dmnpidinfo['versionhandling'] == 6) {
-            foreach ($dmnpidinfo['protx-valid'] as $protxhash => $protxdata) {
-              if (!array_key_exists($protxdata["proTxHash"],$protxglobal[$dashdinfo['testnet']])) {
-                $protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]] = $protxdata;
-                $protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]]["state"] = array();
-                unset($protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]]["wallet"]);
-                unset($protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]]["proTxHash"]);
+            if (array_key_exists("protx-valid",$dmnpidinfo)) {
+              foreach ($dmnpidinfo['protx-valid'] as $protxhash => $protxdata) {
+                if (!array_key_exists($protxdata["proTxHash"], $protxglobal[$dashdinfo['testnet']])) {
+                  $protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]] = $protxdata;
+                  $protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]]["state"] = array();
+                  unset($protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]]["wallet"]);
+                  unset($protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]]["proTxHash"]);
+                }
+                $protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]]["state"][$uname] = $protxdata["state"];
               }
-              $protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]]["state"][$uname] = $protxdata["state"];
             }
           }
 
