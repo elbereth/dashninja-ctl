@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.0');
+DEFINE('DMN_VERSION','2.9.1');
 
 function dmnpidcmp($a, $b)
 {
@@ -1033,8 +1033,18 @@ function dmn_status($dmnpid,$istestnet) {
               if ($gobjectdata2 === false) {
                  xecho("Could not decode JSON from gobject ".$gobjecthash."\n");
               }
-              elseif (!is_array($gobjectdata2) || (count($gobjectdata2) != 1) || !is_array($gobjectdata2[0]) || (count($gobjectdata2[0]) != 2)) {
-                 xecho("Incorrect JSON from gobject ".$gobjecthash." ".count($gobjectdata2)."\n");
+              elseif (!is_array($gobjectdata2)) {
+                 xecho("Incorrect JSON from gobject ".$gobjecthash." : not an array\n");
+              }
+              elseif (array_key_exists("type",$gobjectdata2) && ($gobjectdata2["type"] == 2)) {
+                $gobjectdata2["hash"] = $gobjecthash;
+                $gobjectdata2["gobject"] = $gobjectdata;
+                $gobjecttriggers[] = $gobjectdata2;
+                $commands[] = array("status" => 0,
+                  "dmnnum" => $dmnnum,
+                  "datatype" => "gobject-getvotes-" . $gobjecthash,
+                  "cmd" => $uname . ' "gobject getvotes ' . $gobjecthash . '"',
+                  "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_getvotes_$gobjecthash.json");
               }
               elseif ($gobjectdata2[0][0] == "proposal") {
                 $gobjectdata2[0][1]["hash"] = $gobjecthash;
@@ -1058,13 +1068,16 @@ function dmn_status($dmnpid,$istestnet) {
                       "cmd" => $uname . ' "gobject getvotes ' . $gobjecthash . '"',
                       "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_getvotes_$gobjecthash.json");
               }
+              else {
+                xecho("Incorrect JSON from gobject ".$gobjecthash." : not recognized (".count($gobjectdata2)." entrie(s))\n");
+              }
             }
           }
           $dmnpid[$dmnnum]["gobjectlist"] = array("proposals" => $gobjectproposals, "triggers" => $gobjecttriggers);
         }
       }
       // If v0.13+ (vh=6+) deterministic masternode data (ProTx)
-      elseif ($dmnpidinfo['versionhandling'] >= 6) {
+      if ($dmnpidinfo['versionhandling'] >= 6) {
           $commands[] = array("status" => 0,
               "dmnnum" => $dmnnum,
               "datatype" => "protx-valid",
@@ -1511,7 +1524,7 @@ function dmn_status($dmnpid,$istestnet) {
 
           // Deterministic Masternode List (ProTx) (6) [v13+]
           if ($dmnpidinfo['versionhandling'] == 6) {
-            if (array_key_exists("protx-valid",$dmnpidinfo)) {
+            if (array_key_exists("protx-valid",$dmnpidinfo) && is_array($dmnpidinfo['protx-valid'])) {
               foreach ($dmnpidinfo['protx-valid'] as $protxhash => $protxdata) {
                 if (!array_key_exists($protxdata["proTxHash"], $protxglobal[$dashdinfo['testnet']])) {
                   $protxglobal[$dashdinfo['testnet']][$protxdata["proTxHash"]] = $protxdata;
