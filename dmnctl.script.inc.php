@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.1');
+DEFINE('DMN_VERSION','2.9.2');
 
 function dmnpidcmp($a, $b)
 {
@@ -271,7 +271,13 @@ function dmn_ctlrpc(&$commands) {
     // Execute the command in a thread
     while ((count($threads) < DMN_THREADS_MAX) && ($commandsdone < count($commands))) {
       $pipes[$commandsdone] = array();
-      $thres[$commandsdone] = proc_open('timeout 10 '.DMN_DIR.'/dmnctlrpc '.$commands[$commandsdone]['cmd'].' '.$commands[$commandsdone]['file'],$descriptorspec,$pipes[$commandsdone]);
+      if (array_key_exists("timeout",$commands[$commandsdone])) {
+        $timeout = $commands[$commandsdone]["timeout"];
+      }
+      else {
+        $timeout = 10;
+      }
+      $thres[$commandsdone] = proc_open('timeout '.$timeout.' '.DMN_DIR.'/dmnctlrpc '.$commands[$commandsdone]['cmd'].' '.$commands[$commandsdone]['file'],$descriptorspec,$pipes[$commandsdone]);
       if (is_resource($thres[$commandsdone])) {
         $threads[] = array('cid' => $commandsdone, 'res' => $thres[$commandsdone]);
         $commandsdone++;
@@ -1046,6 +1052,16 @@ function dmn_status($dmnpid,$istestnet) {
                   "cmd" => $uname . ' "gobject getvotes ' . $gobjecthash . '"',
                   "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_getvotes_$gobjecthash.json");
               }
+              elseif (array_key_exists("type",$gobjectdata2) && ($gobjectdata2["type"] == 1)) {
+                $gobjectdata2["hash"] = $gobjecthash;
+                $gobjectdata2["gobject"] = $gobjectdata;
+                $gobjectproposals[] = $gobjectdata2;
+                $commands[] = array("status" => 0,
+                  "dmnnum" => $dmnnum,
+                  "datatype" => "gobject-getvotes-" . $gobjecthash,
+                  "cmd" => $uname . ' "gobject getvotes ' . $gobjecthash . '"',
+                  "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_getvotes_$gobjecthash.json");
+              }
               elseif ($gobjectdata2[0][0] == "proposal") {
                 $gobjectdata2[0][1]["hash"] = $gobjecthash;
                 $gobjectdata2[0][1]["gobject"] = $gobjectdata;
@@ -1070,6 +1086,7 @@ function dmn_status($dmnpid,$istestnet) {
               }
               else {
                 xecho("Incorrect JSON from gobject ".$gobjecthash." : not recognized (".count($gobjectdata2)." entrie(s))\n");
+                var_dump($gobjectdata);
               }
             }
           }
@@ -1081,12 +1098,14 @@ function dmn_status($dmnpid,$istestnet) {
           $commands[] = array("status" => 0,
               "dmnnum" => $dmnnum,
               "datatype" => "protx-valid",
-              "cmd" => $uname . ' "protx list valid '.$dmnpidinfo["info"]["blocks"].' true"',
+              "timeout" => 30,
+              "cmd" => $uname . ' "protx list valid true"',
               "file" => "/dev/shm/dmnctl/$uname.$tmpdate.protx_valid.json");
           $commands[] = array("status" => 0,
               "dmnnum" => $dmnnum,
               "datatype" => "protx-registered",
-              "cmd" => $uname . ' "protx list registered '.$dmnpidinfo["info"]["blocks"].' true"',
+              "timeout" => 30,
+              "cmd" => $uname . ' "protx list registered true"',
               "file" => "/dev/shm/dmnctl/$uname.$tmpdate.protx_registered.json");
       }
     }
