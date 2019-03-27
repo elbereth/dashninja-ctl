@@ -44,6 +44,7 @@ fi
 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main blocksconsensus >> $statuslog
 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main votelimit >> $statuslog
 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main masternodeslistfull >> $statuslog
+/usr/bin/php /home/dash-mnwww/www/main/api/cron.php main protxfull >> $statuslog
 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main governanceproposals >> $statuslog
 /usr/bin/php /home/dash-mnwww/www/main/api/cron.php main governancetriggers >> $statuslog
 
