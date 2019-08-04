@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.2');
+DEFINE('DMN_VERSION','2.9.3');
 
 function dmnpidcmp($a, $b)
 {
@@ -435,7 +435,7 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
     else {
       echo "Error (Failed to move)\n";
     }
-    if (substr($versionraw,0,5) == '0.13.') {
+    if ((substr($versionraw,0,5) == '0.13.') || (substr($versionraw,0,5) == '0.14.')) {
       $versionhandling = 6;
     }
     elseif (substr($versionraw,0,6) == '0.12.3') {
@@ -762,7 +762,7 @@ function dmn_status($dmnpid,$istestnet) {
   $protocolinfo = array();
   $curprotocol = 0;
   $oldprotocol = 99999;
-  $mnstatusexvalues = array('ENABLED','EXPIRED','VIN_SPENT','REMOVE','POS_ERROR','','PRE_ENABLED','WATCHDOG_EXPIRED','NEW_START_REQUIRED','UPDATE_REQUIRED','POSE_BAN','OUTPOINT_SPENT','SENTINEL_PING_EXPIRED');
+  $mnstatusexvalues = array('ENABLED','EXPIRED','VIN_SPENT','REMOVE','POS_ERROR','','PRE_ENABLED','WATCHDOG_EXPIRED','NEW_START_REQUIRED','UPDATE_REQUIRED','POSE_BAN','OUTPOINT_SPENT','SENTINEL_PING_EXPIRED', 'POSE_BANNED');
 
   $wsstatus = array();
 
@@ -1583,6 +1583,19 @@ function dmn_status($dmnpid,$istestnet) {
             }
             elseif ($dmnpidinfo['versionhandling'] == 4) {
               list($mn3status, $mn3protocol, $mn3pubkey, $mn3lastseen, $mn3activeseconds, $mn3lastpaid, $mn4lastpaidblock, $mn3ipport) = explode(" ",$mn3data);
+            }
+            elseif ($dmnpidinfo['versionhandling'] == 6) {
+              $mn3status = $mn3data['status'];
+              $mn3protocol = $dashdinfo['protocol'];
+              $mn3pubkey = $mn3data['payee'];
+              $mn3lastseen = 0;
+              $mn3activeseconds = 0;
+              $mn3lastpaid = $mn3data['lastpaidtime'];
+              $mn4lastpaidblock = $mn3data['lastpaidblock'];
+              $mn3ipport = $mn3data['address'];
+              $mn5daemonversion = '';
+              $mn5sentinelversion = '';
+              $mn5sentinelstate = '';
             }
             else {
                 $mn3status = $mn3data['status'];
