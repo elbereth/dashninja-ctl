@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.3');
+DEFINE('DMN_VERSION','2.9.4');
 
 function dmnpidcmp($a, $b)
 {
@@ -435,7 +435,11 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
     else {
       echo "Error (Failed to move)\n";
     }
-    if ((substr($versionraw,0,5) == '0.13.') || (substr($versionraw,0,5) == '0.14.')) {
+    // TODO do a better job at detecting versions ! Reversing the versionhandling value to default to higher versionhandling
+    if ((substr($versionraw,0,5) == '0.16.')) {
+      $versionhandling = 7;
+    }
+    elseif ((substr($versionraw,0,5) == '0.13.') || (substr($versionraw,0,5) == '0.14.') || (substr($versionraw,0,5) == '0.15.')) {
       $versionhandling = 6;
     }
     elseif (substr($versionraw,0,6) == '0.12.3') {
@@ -789,11 +793,25 @@ function dmn_status($dmnpid,$istestnet) {
     $uname = $dmnpidinfo['uname'];
     $dmnpid[$dmnnum]['pidstatus'] = dmn_checkpid($dmnpidinfo['pid']);
     if (($dmnpid[$dmnnum]['pidstatus']) && ($dmnpidinfo['currentbin'] != '')) {
-      $commands[] = array("status" => 0,
-                          "dmnnum" => $dmnnum,
-                          "datatype" => "info",
-                          "cmd" => "$uname getinfo",
-                          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getinfo.json");
+      if ($dmnpidinfo['versionhandling'] >= 7) {
+        $commands[] = array("status" => 0,
+          "dmnnum" => $dmnnum,
+          "datatype" => "info1",
+          "cmd" => "$uname getnetworkinfo",
+          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getnetworkinfo.json");
+        $commands[] = array("status" => 0,
+          "dmnnum" => $dmnnum,
+          "datatype" => "info2",
+          "cmd" => "$uname getblockchaininfo",
+          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getblockchaininfo.json");
+      }
+      else {
+        $commands[] = array("status" => 0,
+          "dmnnum" => $dmnnum,
+          "datatype" => "info",
+          "cmd" => "$uname getinfo",
+          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getinfo.json");
+      }
     }
   }
 
@@ -988,6 +1006,19 @@ function dmn_status($dmnpid,$istestnet) {
     if (strlen($uname) > $nbuname) {
       $nbuname = strlen($uname);
     }
+    // If the version is 0.16+ we need to fetch "info" from "info1" and "info2"
+    if ($dmnpidinfo['versionhandling'] >= 7) {
+      $dmnpidinfo['info'] = array('version' => '', 'protocolversion' => 0, 'connections' => 0, 'blocks', 0);
+      if (array_key_exists('info1',$dmnpidinfo)) {
+        $dmnpidinfo['info']['version'] = $dmnpidinfo['info1']["version"];
+        $dmnpidinfo['info']['protocolversion'] = $dmnpidinfo['info1']["protocolversion"];
+        $dmnpidinfo['info']['connections'] = $dmnpidinfo['info1']["connections"];
+      }
+      if (array_key_exists('info1',$dmnpidinfo)) {
+        $dmnpidinfo['info']['blocks'] = $dmnpidinfo['info2']["blocks"];
+      }
+      $dmnpid[$dmnnum]['info'] = $dmnpidinfo['info'];
+    }
     if (array_key_exists('info',$dmnpidinfo)) {
       if (strlen($dmnpidinfo['info']['version']) > $nbversion) {
         $nbversion = strlen($dmnpidinfo['info']['version']);
@@ -1004,10 +1035,10 @@ function dmn_status($dmnpid,$istestnet) {
     }
     if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '')) {
       $commands[] = array("status" => 0,
-                          "dmnnum" => $dmnnum,
-                          "datatype" => "blockhash",
-                          "cmd" => $uname.' "getblockhash '.$dmnpidinfo['info']['blocks'].'"',
-                          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getblockhash.json");
+        "dmnnum" => $dmnnum,
+        "datatype" => "blockhash",
+        "cmd" => $uname . ' "getblockhash ' . $dmnpidinfo['info']['blocks'] . '"',
+        "file" => "/dev/shm/dmnctl/$uname.$tmpdate.getblockhash.json");
       $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "networkhashps",
@@ -1542,7 +1573,7 @@ function dmn_status($dmnpid,$istestnet) {
           }
 
           // Deterministic Masternode List (ProTx) (6) [v13+]
-          if ($dmnpidinfo['versionhandling'] == 6) {
+          if ($dmnpidinfo['versionhandling'] >= 6) {
             if (array_key_exists("protx-valid",$dmnpidinfo) && is_array($dmnpidinfo['protx-valid'])) {
               foreach ($dmnpidinfo['protx-valid'] as $protxhash => $protxdata) {
                 if (!array_key_exists($protxdata["proTxHash"], $protxglobal[$dashdinfo['testnet']])) {
@@ -1584,7 +1615,7 @@ function dmn_status($dmnpid,$istestnet) {
             elseif ($dmnpidinfo['versionhandling'] == 4) {
               list($mn3status, $mn3protocol, $mn3pubkey, $mn3lastseen, $mn3activeseconds, $mn3lastpaid, $mn4lastpaidblock, $mn3ipport) = explode(" ",$mn3data);
             }
-            elseif ($dmnpidinfo['versionhandling'] == 6) {
+            elseif ($dmnpidinfo['versionhandling'] >= 6) {
               $mn3status = $mn3data['status'];
               $mn3protocol = $dashdinfo['protocol'];
               $mn3pubkey = $mn3data['payee'];
@@ -2183,7 +2214,10 @@ if ($argc > 1) {
       echo "Success (".count($nodes)." nodes)\n";
     }
     elseif (($response['http_code'] >= 400) && ($response['http_code'] <= 499)) {
-      echo "Error (".$response['http_code'].": ".$content['message'].")\n";
+      echo "Error (".$response['http_code'].": ".implode(' / ',$content['messages']).")\n";
+    }
+    else {
+      echo "Error (".$response['http_code'].": ".implode(' / ',$content['messages']).")\n";
     }
   }
   else {
