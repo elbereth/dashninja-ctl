@@ -70,16 +70,21 @@ DEFINE('DMN_PORTCHECK_SEMAPHORE','/var/run/dmnportcheck.pid');
 DEFINE('DMN_PORTCHECK_TIMEOUT',4);
 //  Interval between checks for a node (in seconds)
 DEFINE('DMN_PORTCHECK_INTERVAL',3600);
+//  Bind to this IP (cannot be local, this needs to be set to an external IP)
+DEFINE('DMN_PORTCHECK_BINDIP4',"127.0.0.1");
+DEFINE('DMN_PORTCHECK_BINDIP6',"::1");
+//  How many ports to check at the same time
+DEFINE('DMN_PORTCHECK_THREADS_MAX',64);
 
 // Balancer retriever specifics
 //  Semaphore file (only allow 1 instance)
 DEFINE('DMN_BALANCE_SEMAPHORE','/var/run/dmnbalance.pid');
 //  Interval between balance retrieval for a pubkey (in seconds)
 DEFINE('DMN_BALANCE_INTERVAL',900);
-//  URL for testnet balance retrieval (abe explorer API)
-DEFINE('DMN_BALANCE_URL_TESTNET','http://127.0.0.1:17890/chain/Dash/q/addressbalance/%%p%%');
-//  URL for mainnet balance retrieval (abe explorer API)
-DEFINE('DMN_BALANCE_URL_MAINNET','http://127.0.0.1:7890/chain/Dash/q/addressbalance/%%p%%');
+//  URL for testnet balance retrieval (insight api)
+DEFINE('DMN_BALANCE_URL_TESTNET','http://127.0.0.1:13001/insight-api/addr/%%p%%/balance');
+//  URL for mainnet balance retrieval (insight api)
+DEFINE('DMN_BALANCE_URL_MAINNET','http://127.0.0.1:3001/insight-api/addr/%%p%%/balance');
 
 // Block Parser specifics
 //  Semaphore file (only allow 1 instance)
