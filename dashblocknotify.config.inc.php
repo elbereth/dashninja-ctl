@@ -24,8 +24,7 @@
 $unamelist = array(
        'dmn01' => array('bt' => true,   'block' => false,   'mempool' => false),
        'dmn02' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'dmn03' => array('bt' => true,   'block' => false,   'mempool' => false),
-       'p2pool' => array('bt' => true,   'block' => true,   'mempool' => true),
+       'dnmonblk' => array('bt' => true,   'block' => true,   'mempool' => true),
 );
 
 ?>
