@@ -23,7 +23,7 @@ if ((!defined('DMN_SCRIPT')) || (DMN_SCRIPT !== true)) {
   die('This is part of the dmnctl script, run it from there.');
 }
 
-DEFINE('DMN_VERSION','2.3.0');
+DEFINE('DMN_VERSION','2.4.0');
 
 xecho("dmnbalance v".DMN_VERSION."\n");
 if (file_exists(DMN_BALANCE_SEMAPHORE) && (posix_getpgid(intval(file_get_contents(DMN_BALANCE_SEMAPHORE))) !== false) ) {
@@ -187,7 +187,7 @@ foreach($mncheck as $mnpubkey) {
     echo "Error\n";
   }
   else {
-    $mncurbalance = floatval($res);
+    $mncurbalance = floatval($res)/100000000;
     $mncurbalancerdisplay = sprintf("%.9f",$mncurbalance);
     echo "$mncurbalancerdisplay DASH\n";
     $payload[] = array('TestNet' => 0,
