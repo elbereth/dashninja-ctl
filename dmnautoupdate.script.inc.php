@@ -23,11 +23,6 @@ DEFINE('DMN_VERSION','0.1.1');
 
 xecho('dmnautoupdate v'.DMN_VERSION."\n");
 
-function die2($retcode) {
-    unlink(DMN_AUTOUPDATE_SEMAPHORE);
-    die($retcode);
-}
-
 if (file_exists(DMN_AUTOUPDATE_SEMAPHORE) && (posix_getpgid(intval(file_get_contents(DMN_AUTOUPDATE_SEMAPHORE))) !== false) ) {
     xecho("Already running (PID ".sprintf('%d',file_get_contents(DMN_AUTOUPDATE_SEMAPHORE)).")\n");
     die(10);
@@ -40,12 +35,12 @@ if (file_exists($curdatafile)) {
     $data = file_get_contents($curdatafile);
     if ($data === FALSE) {
         echo "ERROR (Could not read file)\n";
-        die2(1);
+        die2(1, DMN_AUTOUPDATE_SEMAPHORE);
     }
     $data = json_decode($data,true);
     if ($data === FALSE) {
         echo "ERROR (Could not decode JSON data)\n";
-        die2(1);
+        die2(1, DMN_AUTOUPDATE_SEMAPHORE);
     }
     $dt = new \DateTime($data['Last-Modified']);
     echo "OK (".$dt->format('Y-m-d H:i:s')." / ".$data['Content-Length']." bytes)\n";
@@ -75,14 +70,14 @@ if ((intval($headers['Content-Length']) == intval($data['Content-Length'])) && (
 //    var_dump($output);
 //    var_dump($ret);
 //    echo "OK\n";
-    die2(0);
+    die2(0, DMN_AUTOUPDATE_SEMAPHORE);
 }
 else {
     xecho("Downloading new build from server: ");
     $rawfile = file_get_contents(DMN_AUTOUPDATE_TEST);
     if (($rawfile === FALSE) || (strlen($rawfile) != intval($headers['Content-Length']))) {
          echo "ERROR\n";
-        die2(2);
+        die2(2, DMN_AUTOUPDATE_SEMAPHORE);
     }
     echo "OK\n";
     xecho("Saving file: ");
@@ -95,7 +90,7 @@ else {
     echo $fnam." ";
     if (file_put_contents($fnam,$rawfile) === FALSE) {
         echo "ERROR\n";
-        die2(3);
+        die2(3, DMN_AUTOUPDATE_SEMAPHORE);
     };
     echo "OK\n";
     unset($rawfile);
@@ -106,7 +101,7 @@ else {
     chdir($cdir);
     if ($ret != 0) {
         echo "ERROR (untar failed with return code $ret)\n";
-        die2(4);
+        die2(4, DMN_AUTOUPDATE_SEMAPHORE);
     }
     unlink($fnam);
     $folder = FALSE;
@@ -121,18 +116,18 @@ else {
     $dashdpath = $tdir."/".$folder."/bin/dashd";
     if (($folder === FALSE) || (!file_exists($dashdpath))) {
         echo "ERROR (Could not extract correctly)\n";
-        die2(5);
+        die2(5, DMN_AUTOUPDATE_SEMAPHORE);
     }
     echo "OK (".$dashdpath.")\n";
     xecho("Retrieving version number: ");
     exec($dashdpath." -?",$output,$ret);
     if ($ret != 0) {
         echo "ERROR (dashd return code $ret)\n";
-        die2(5);
+        die2(5, DMN_AUTOUPDATE_SEMAPHORE);
     }
     if (!preg_match('/^Dash Core Daemon version v(.+)$/',$output[0],$match)) {
         echo "ERROR (dashd return version do not match regexp '".$output[0]."')\n";
-        die2(6);
+        die2(6, DMN_AUTOUPDATE_SEMAPHORE);
     };
     $version = $match[1];
     echo "OK (".$version.")\n";
@@ -148,19 +143,19 @@ else {
     if ($ret != 0) {
         echo "ERROR (return code of dmnctl restart was $ret)\n";
         var_dump($output);
-        die2(8);
+        die2(8, DMN_AUTOUPDATE_SEMAPHORE);
     }
     exec("/opt/dmnctl/dmnctl restart testnet masternode",$output,$ret);
     if ($ret != 0) {
         echo "ERROR (return code of dmnctl restart was $ret)\n";
         var_dump($output);
-        die2(8);
+        die2(8, DMN_AUTOUPDATE_SEMAPHORE);
     }
     echo "OK\n";
     xecho("Saving data for next run...");
     if (file_put_contents($curdatafile,json_encode($headers)) === FALSE) {
         echo "ERROR\n";
-        die2(7);
+        die2(7, DMN_AUTOUPDATE_SEMAPHORE);
     }
     echo "OK\n";
 }
