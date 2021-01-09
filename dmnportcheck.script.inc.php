@@ -23,7 +23,7 @@ if ((!defined('DMN_SCRIPT')) || (DMN_SCRIPT !== true)) {
   die('This is part of the dmnctl script, run it from there.');
 }
 
-DEFINE('DMN_VERSION','2.4.0');
+DEFINE('DMN_VERSION','2.3.3');
 
 // Execute port check commands
 function dmn_portcheck_mt(&$commands) {
@@ -44,7 +44,7 @@ function dmn_portcheck_mt(&$commands) {
   $nbok = 0;
   $nberr = 0;
 
-  xecho("Executing ".count($commands)." portcheck commands (using ".DMN_THREADS_MAX." threads):\n");
+  xecho("Executing ".count($commands)." portcheck commands (using ".DMN_PORTCHECK_THREADS_MAX." threads):\n");
 
   while ($done != count($commands)) {
 
@@ -80,7 +80,7 @@ function dmn_portcheck_mt(&$commands) {
 
     // Fill up free threads with all possible commands
     // Execute the command in a thread
-    while ((count($threads) < DMN_THREADS_MAX) && ($commandsdone < count($commands))) {
+    while ((count($threads) < DMN_PORTCHECK_THREADS_MAX) && ($commandsdone < count($commands))) {
       $pipes[$commandsdone] = array();
       $thres[$commandsdone] = proc_open('/usr/bin/timeout 30 '.DMN_DIR.'/dmnportcheckdo '.$commands[$commandsdone]['cmd'].' '.$commands[$commandsdone]['file'],$descriptorspec,$pipes[$commandsdone]);
       if (is_resource($thres[$commandsdone])) {
@@ -107,15 +107,16 @@ if (($argc < 2) || (($argv[1] != 'db') && ($argv[1] != 'nodb'))) {
   die();
 }
 
-if ($argv[1] == 'db') {
+/*if ($argv[1] == 'db') {
   if (file_exists(DMN_PORTCHECK_SEMAPHORE) && (posix_getpgid(intval(file_get_contents(DMN_PORTCHECK_SEMAPHORE))) !== false) ) {
     xecho("Already running (PID ".sprintf('%d',file_get_contents(DMN_PORTCHECK_SEMAPHORE)).")\n");
     die(10);
   }
   file_put_contents(DMN_PORTCHECK_SEMAPHORE,sprintf('%s',getmypid()));
-}
+}*/
 
 xecho('Retrieving MN port check: ');
+
 $result = dmn_cmd_get('/portcheck/list',array(),$response);
 if ($response['http_code'] == 200) {
   echo "Fetched...";
@@ -160,7 +161,6 @@ if ($argv[1] == 'nodb') {
   echo "Done (".count($mnpc)." entries)\n";
 }
 else {
-
   xecho('Retrieving MN info (mainnet): ');
   $result = dmn_cmd_get('/masternodes',array(),$response);
   if ($response['http_code'] == 200) {
@@ -192,11 +192,10 @@ else {
     }
     die(201);
   }
-
   xecho('Retrieving MN info (testnet): ');
   $result = dmn_cmd_get('/masternodes',array("testnet" => 1),$response);
   if ($response['http_code'] == 200) {
-    echo "Fetched... ";
+    echo "Fetched...";
     $mnlist = json_decode($result,true);
     if ($mnlist === false) {
       echo " Failed to JSON decode!\n";
@@ -209,7 +208,7 @@ else {
     foreach($mnlist['data']['masternodes'] as $mnip) {
       $mnips[] = $mnip['MasternodeIP'].'-'.$mnip['MasternodePort'].'-1';
     }
-    echo " OK (".count($mnlist['data']["masternodes"])." masternodes)\n";
+    echo " OK (".count($mnlist['data'])." masternodes)\n";
   }
   else {
     echo "Failed [".$response['http_code']."]\n";
@@ -235,16 +234,16 @@ else {
     $mnsubver[$row['NodeIP'].'-'.$row['NodePort'].'-'.$row['NodeTestNet']] = $row['NodeSubVer'];
     if (in_array($row['NodeIP'].'-'.$row['NodePort'].'-'.$row['NodeTestNet'],$mnips)) {
       $numok++;
-//      echo "[".$row['NodeTestNet']."] ".$row['NodeIP'].':'.$row['NodePort']." - ".$row['NextCheck']." - ";
+      //echo "[".$row['NodeTestNet']."] ".$row['NodeIP'].':'.$row['NodePort']." - ".$row['NextCheck']." - ";
       $date = new DateTime($row['NextCheck']);
       $row['NextCheck'] = $date->getTimestamp();
-//      echo time()." > ".$row['NextCheck']." = ";
-      if ((time() > $row['NextCheck']) ) {
-//        echo "True\n";
+      //echo time()." > ".$row['NextCheck']." = ";
+      if ( (time() > $row['NextCheck']) ) {
+        //echo "True\n";
         $mnpc[] = $row['NodeIP'].'-'.$row['NodePort'].'-'.$row['NodeTestNet'];
       }
       else {
-//        echo "False\n";
+        //echo "False\n";
         $mnpcnot[] = $row['NodeIP'].'-'.$row['NodePort'].'-'.$row['NodeTestNet'];
       }
     }

@@ -23,7 +23,7 @@ if ((!defined('DMN_SCRIPT')) || (DMN_SCRIPT !== true)) {
   die('This is part of the dmnctl script, run it from there.');
 }
 
-DEFINE('DMN_VERSION','2.2.2');
+DEFINE('DMN_VERSION','2.3.1');
 
 function dmn_checkportopen($ip, $port, $testnet, $config, &$subver, &$errmsg) {
 
@@ -34,9 +34,15 @@ function dmn_checkportopen($ip, $port, $testnet, $config, &$subver, &$errmsg) {
   $sversion = $config[$testnet]['SatoshiVersion'];
   $protocol = $config[$testnet]['ProtocolVersion'];
   $magic = hex2bin($config[$testnet]['ProtocolMagic']);
+  if(filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+    $bindip = DMN_PORTCHECK_BINDIP6;
+  }
+  else {
+    $bindip = DMN_PORTCHECK_BINDIP4;
+  }
   try
   {
-    $c = new \Dash\Node($ip,$port,DMN_PORTCHECK_TIMEOUT,DMN_VERSION,$sversion,$protocol,$magic);
+    $c = new \Dash\Node($ip,$bindip,$port,DMN_PORTCHECK_TIMEOUT,DMN_VERSION,$sversion,$protocol,$magic);
     $subver = $c->getSubVer();
     $c->closeConnection();
     $res = 1;

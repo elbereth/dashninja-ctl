@@ -23,10 +23,10 @@ namespace Dash;
 
 use Exception;
 
-define('PROTOCOL_VERSION',70208);
+define('PROTOCOL_VERSION',70218);
 define('PROTOCOL_MAGIC',"\xbf\x0c\x6b\xbd");
 define('HRVERSION',"/Dash Core:%s/Dash Ninja Port Checker:%s.%d/");
-define('THISVERSION',5);
+define('THISVERSION',6);
 
 function strToHex($string){
     $hex = '';
@@ -38,6 +38,9 @@ function strToHex($string){
     return strToUpper($hex);
 }
 
+class ESocketCreate extends Exception {}
+class ESocketBind extends Exception {}
+class ESocketConnect extends Exception {}
 class EUnexpectedPacketType extends Exception {}
 class EFailedToReadFromPeer extends Exception {}
 class EUnexpectedFragmentation extends Exception {}
@@ -52,19 +55,31 @@ class Node {
         private $subver;
         private $prot_magic;
 
-	public function __construct($ip, $port = 9999, $timeout = 5, $versionid = '1.0.0', $sversionid = '0.12.2.2', $protver = PROTOCOL_VERSION, $prot_magic = PROTOCOL_MAGIC) {
-		$this->sock = @fsockopen($ip, $port, $errno, $errstr, $timeout);
-		if (!$this->sock) throw new Exception($errstr, $errno);
+	public function __construct($ip, $bindip, $port = 9999, $timeout = 5, $versionid = '1.0.0', $sversionid = '0.12.2.2', $protver = PROTOCOL_VERSION, $prot_magic = PROTOCOL_MAGIC) {
+
+		$this->sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+		if ($this->sock === false) {
+			$errno = socket_last_error($this->sock);
+			throw new ESocketCreate(socket_strerror($errno), $errno);
+		}
+		if (socket_bind($this->sock, $bindip) === false) {
+			$errno = socket_last_error($this->sock);
+			throw new ESocketBind(socket_strerror($errno), $errno);
+		}
+		if (socket_connect($this->sock, $ip, $port) === false) {
+			$errno = socket_last_error($this->sock);
+			throw new ESocketConnect(socket_strerror($errno), $errno);
+		}
 
 		$this->myself = pack('NN', mt_rand(0,0xffffffff), mt_rand(0, 0xffffffff));
                 $this->prot_magic = $prot_magic;
 
 		// send "version" packet
 		$pkt = $this->_makeVersionPacket($protver,$versionid,$sversionid);
-		fwrite($this->sock, $pkt);
+		socket_send($this->sock, $pkt, strlen($pkt), 0);
 
 		// wait for reply
-		while((!feof($this->sock)) && ($this->version == 0)) {
+		while($this->version == 0) {
 			$pkt = $this->readPacket();
 			switch($pkt['type']) {
 				case 'version':
@@ -82,7 +97,7 @@ class Node {
 
         public function closeConnection() {
 		if ($this->sock !== false) {
-			@fclose($this->sock);
+			socket_close($this->sock);
 		}
         }
 
@@ -168,8 +183,10 @@ class Node {
 		if ($this->version == 10300) $this->version = 300;
 
 		// send verack?
-		if ($this->version >= 209)
-			fwrite($this->sock, $this->_makePacket('verack', NULL));
+		if ($this->version >= 209) {
+		  $msg = $this->_makePacket('verack', NULL);
+			socket_send($this->sock, $msg, strlen($msg), 0);
+		}
 	}
 
     protected function _decodeRejectPayload($data) {
@@ -187,8 +204,8 @@ class Node {
 
     public function readPacket($noqueue = false) {
 		if ((!$noqueue) && ($this->queue)) return array_shift($this->queue);
-		$data = fread($this->sock, 20);
-		if ($data === false) throw new EFailedToReadFromPeer('Failed to read from peer');
+		$bytesread = socket_recv($this->sock, $data, 20, MSG_WAITALL);
+		if ($bytesread === false) throw new EFailedToReadFromPeer('Failed to read from peer 1 ('.socket_last_error($this->sock).': '.socket_strerror(socket_last_error($this->sock)));
 		if (strlen($data) != 20) throw new EUnexpectedFragmentation('unexpected fragmentation ('.strlen($data).' bytes read/expected 20)');
 		if (substr($data, 0, 4) != $this->prot_magic) throw new Exception('Corrupted stream');
 		$type = substr($data, 4, 12);
@@ -197,17 +214,27 @@ class Node {
 
 		list(,$len) = unpack('V', substr($data, 16, 4));
 		if (($this->version >= 209) || ($this->version == 0)) {
-			$checksum = fread($this->sock, 4);
+			$bytesread = socket_recv($this->sock, $checksum, 4, MSG_WAITALL);
+			if ($bytesread === false) throw new EFailedToReadFromPeer('Failed to read from peer 2 ('.socket_last_error($this->sock).': '.socket_strerror(socket_last_error($this->sock)));
+			if (strlen($checksum) != 4) throw new EUnexpectedFragmentation('unexpected fragmentation ('.strlen($checksum).' bytes read/expected 4)');
 			$payload = '';
-			while(!feof($this->sock) && (strlen($payload) < $len)) {
-				$payload .= fread($this->sock, $len - strlen($payload));
+			$bytesread = socket_recv($this->sock, $eof, 1, MSG_PEEK | MSG_DONTWAIT);
+			while (($bytesread !== false) && ($bytesread != 0) && (strlen($payload) < $len)) {
+				$bytesread = socket_recv($this->sock, $data, $len - strlen($payload), MSG_WAITALL);
+				if ($bytesread === false) throw new EFailedToReadFromPeer('Failed to read from peer 3 ('.socket_last_error($this->sock).': '.socket_strerror(socket_last_error($this->sock)));
+				$payload .= $data;
+				$bytesread = socket_recv($this->sock, $eof, 1, MSG_PEEK | MSG_DONTWAIT);
 			}
 			$local = $this->_checksum($payload);
 			if ($local != $checksum) throw new Exception('Received corrupted data');
 		} else {
 			$payload = '';
-			while(!feof($this->sock) && (strlen($payload) < $len)) {
-				$payload .= fread($this->sock, $len - strlen($payload));
+			$bytesread = socket_recv($this->sock, $eof, 1, MSG_PEEK | MSG_DONTWAIT);
+			while (($bytesread !== false) && ($bytesread != 0) && (strlen($payload) < $len)) {
+				$bytesread = socket_recv($this->sock, $data, $len - strlen($payload), MSG_WAITALL);
+				if ($bytesread === false) throw new EFailedToReadFromPeer('Failed to read from peer 4 ('.socket_last_error($this->sock).': '.socket_strerror(socket_last_error($this->sock)));
+				$payload .= $data;
+				$bytesread = socket_recv($this->sock, $eof, 1, MSG_PEEK | MSG_DONTWAIT);
 			}
 		}
 //		echo "Packet[$type]: ".bin2hex($payload)."\n";
@@ -224,8 +251,10 @@ class Node {
 //                echo "_makeVersionPacket ($version)";
 		$data .= pack('VV', ($nServices >> 32) & 0xffffffff, $nServices & 0xffffffff);
 		$data .= pack('VV', ($timestamp >> 32) & 0xffffffff, $timestamp & 0xffffffff);
-		$data .= $this->_address(stream_socket_get_name($this->sock, false), $nServices);
-		$data .= $this->_address(stream_socket_get_name($this->sock, true), $nServices);
+		socket_getsockname($this->sock,$ip,$port);
+		$data .= $this->_address($ip.":".$port, $nServices);
+		socket_getpeername($this->sock,$ip,$port);
+		$data .= $this->_address($ip.":".$port, $nServices);
 		$data .= $this->myself;
 		$data .= $this->_string(sprintf(HRVERSION,$sstr,$str,THISVERSION));
 		$data .= pack('V', $nBestHeight);
