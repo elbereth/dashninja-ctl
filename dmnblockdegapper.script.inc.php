@@ -31,12 +31,12 @@ if ($argc == 2) {
     if ($argv[1] == "test") {
         $display = "testnet";
         $testnet = 1;
-        $uname = 'tfaucet';
+        $uname = 'tp2pool';
     }
     else {
         $display = "mainnet";
         $testnet = 0;
-        $uname = 'p2pool';
+        $uname = 'dnmonblk';
     }
 }
 else {
@@ -104,7 +104,7 @@ else {
       xecho(sprintf("#%'.03d",$id+1)." ($gap): ");
       $output = array();
       $result = 0;
-      $lastline = exec("/usr/bin/timeout 10 ".DMN_DIR."/dashblockretrieve $uname $gap",$output,$result);
+      $lastline = exec("/usr/bin/timeout 60 ".DMN_DIR."/dashblockretrieve $uname $gap",$output,$result);
       if ($result == 0) {
         echo "OK";
       }
