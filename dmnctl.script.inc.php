@@ -23,7 +23,9 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.4');
+DEFINE('DMN_VERSION','2.9.7');
+
+DEFINE('GOVERNANCE_VOTES_TYPES',array('yes','no','abstain'));
 
 function dmnpidcmp($a, $b)
 {
@@ -1080,7 +1082,7 @@ function dmn_status($dmnpid,$istestnet) {
                 $commands[] = array("status" => 0,
                   "dmnnum" => $dmnnum,
                   "datatype" => "gobject-getvotes-" . $gobjecthash,
-                  "cmd" => $uname . ' "gobject getvotes ' . $gobjecthash . '"',
+                  "cmd" => $uname . ' "gobject getcurrentvotes ' . $gobjecthash . '"',
                   "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_getvotes_$gobjecthash.json");
               }
               elseif (array_key_exists("type",$gobjectdata2) && ($gobjectdata2["type"] == 1)) {
@@ -1090,7 +1092,7 @@ function dmn_status($dmnpid,$istestnet) {
                 $commands[] = array("status" => 0,
                   "dmnnum" => $dmnnum,
                   "datatype" => "gobject-getvotes-" . $gobjecthash,
-                  "cmd" => $uname . ' "gobject getvotes ' . $gobjecthash . '"',
+                  "cmd" => $uname . ' "gobject getcurrentvotes ' . $gobjecthash . '"',
                   "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_getvotes_$gobjecthash.json");
               }
               elseif ($gobjectdata2[0][0] == "proposal") {
@@ -1101,7 +1103,7 @@ function dmn_status($dmnpid,$istestnet) {
                 $commands[] = array("status" => 0,
                                     "dmnnum" => $dmnnum,
                                     "datatype" => "gobject-getvotes-" . $gobjecthash,
-                                    "cmd" => $uname . ' "gobject getvotes ' . $gobjecthash . '"',
+                                    "cmd" => $uname . ' "gobject getcurrentvotes ' . $gobjecthash . '"',
                                     "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_getvotes_$gobjecthash.json");
               }
               elseif ($gobjectdata2[0][0] == "trigger") {
@@ -1112,7 +1114,7 @@ function dmn_status($dmnpid,$istestnet) {
                   $commands[] = array("status" => 0,
                       "dmnnum" => $dmnnum,
                       "datatype" => "gobject-getvotes-" . $gobjecthash,
-                      "cmd" => $uname . ' "gobject getvotes ' . $gobjecthash . '"',
+                      "cmd" => $uname . ' "gobject getcurrentvotes ' . $gobjecthash . '"',
                       "file" => "/dev/shm/dmnctl/$uname.$tmpdate.gobject_getvotes_$gobjecthash.json");
               }
               else {
@@ -1477,7 +1479,7 @@ function dmn_status($dmnpid,$istestnet) {
                           if (is_array($dmnpidinfo["gobject-getvotes-" . $proposaldata["hash"]])) {
                               foreach ($dmnpidinfo["gobject-getvotes-" . $proposaldata["hash"]] as $gobjectvotehash => $gobjectvotedata) {
                                 list($collateral,$ntime,$vote,$signal) = explode(":",$gobjectvotedata);
-                                if ($signal == "FUNDING") {
+                                if (strcasecmp($signal,"FUNDING") == 0) {
                                   $matches = array();
                                   if ((substr($collateral,0,16) == "CTxIn(COutPoint(") && (substr($collateral,-14) == "), scriptSig=)")) {
                                       $collateral = substr($collateral, 16, strlen($collateral) - 30);
@@ -1490,20 +1492,25 @@ function dmn_status($dmnpid,$istestnet) {
                                       $mnoutputhash = false;
                                   }
                                   if ($mnoutputhash !== false) {
-                                    if (array_key_exists($mnoutputhash . "-" . $mnoutputindex, $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]])) {
-                                      if ($gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash . "-" . $mnoutputindex]["nTime"] < $ntime) {
+                                    if (in_array($vote,GOVERNANCE_VOTES_TYPES)) {
+                                      if (array_key_exists($mnoutputhash . "-" . $mnoutputindex, $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]])) {
+                                        if ($gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash . "-" . $mnoutputindex]["nTime"] < $ntime) {
+                                          $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash . "-" . $mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
+                                            "MasternodeOutputIndex" => intval($mnoutputindex),
+                                            "VoteHash" => $gobjectvotehash,
+                                            "nTime" => intval($ntime),
+                                            "Vote" => $vote);
+                                        }
+                                      } else {
                                         $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash . "-" . $mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
                                           "MasternodeOutputIndex" => intval($mnoutputindex),
                                           "VoteHash" => $gobjectvotehash,
                                           "nTime" => intval($ntime),
                                           "Vote" => $vote);
                                       }
-                                    } else {
-                                      $gobjectvotes[$dashdinfo['testnet']][$proposaldata["hash"]][$mnoutputhash . "-" . $mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
-                                        "MasternodeOutputIndex" => intval($mnoutputindex),
-                                        "VoteHash" => $gobjectvotehash,
-                                        "nTime" => intval($ntime),
-                                        "Vote" => $vote);
+                                    }
+                                    else {
+                                      xecho("Unknown vote type '".$vote."' on ".$dmnpidinfo["uname"]." (testnet=".$dashdinfo['testnet'].") for proposal hash ".$proposaldata["hash"]." from masternode ".$mnoutputhash . "-" . $mnoutputindex." vote hash ".$gobjectvotehash.".\n");
                                     }
                                   }
                                 }
@@ -1534,19 +1541,19 @@ function dmn_status($dmnpid,$istestnet) {
                           if (is_array($dmnpidinfo["gobject-getvotes-" . $triggerdata["hash"]])) {
                               foreach ($dmnpidinfo["gobject-getvotes-" . $triggerdata["hash"]] as $gobjectvotehash => $gobjectvotedata) {
                                   list($collateral,$ntime,$vote,$signal) = explode(":",$gobjectvotedata);
-                                  if ($signal == "FUNDING") {
+                                  if (strcasecmp($signal,"FUNDING") == 0) {
                                     $matches = array();
-                                      if ((substr($collateral,0,16) == "CTxIn(COutPoint(") && (substr($collateral,-14) == "), scriptSig=)")) {
-                                          $collateral = substr($collateral, 16, strlen($collateral) - 30);
-                                          list($mnoutputhash, $mnoutputindex) = explode(", ", $collateral);
-                                      }
-                                      elseif (preg_match($collateralregexp,$collateral,$matches) == 1) {
-                                        list($empty, $mnoutputhash, $mnoutputindex) = $matches;
-                                      }
-                                      else {
-                                        $mnoutputhash = false;
-                                      }
-                                      if ($mnoutputhash !== false) {
+                                    if ((substr($collateral,0,16) == "CTxIn(COutPoint(") && (substr($collateral,-14) == "), scriptSig=)")) {
+                                        $collateral = substr($collateral, 16, strlen($collateral) - 30);
+                                        list($mnoutputhash, $mnoutputindex) = explode(", ", $collateral);
+                                    }
+                                    elseif (preg_match($collateralregexp,$collateral,$matches) == 1) {
+                                      list($empty, $mnoutputhash, $mnoutputindex) = $matches;
+                                    }
+                                    else {
+                                      $mnoutputhash = false;
+                                    }
+                                    if ($mnoutputhash !== false) {
                                       if (array_key_exists($mnoutputhash . "-" . $mnoutputindex, $gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]])) {
                                         if ($gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]][$mnoutputhash . "-" . $mnoutputindex]["nTime"] < $ntime) {
                                           $gobjectvotes[$dashdinfo['testnet']][$triggerdata["hash"]][$mnoutputhash . "-" . $mnoutputindex] = array("MasternodeOutputHash" => $mnoutputhash,
@@ -2149,7 +2156,7 @@ function dmn_status($dmnpid,$istestnet) {
           }
           xecho("+ Governance Object Votes: ");
           if ($content["data"]["gobjvotes"] === false) {
-            echo "Failed!\n";
+            echo "Failed (".$content["data"]["gobjvotes"].")!\n";
           } else {
             echo $content["data"]["gobjvotes"]."\n";
           }
