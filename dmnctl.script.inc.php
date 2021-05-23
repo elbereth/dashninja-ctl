@@ -23,9 +23,9 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.8');
+DEFINE('DMN_VERSION','2.9.9');
 
-DEFINE('GOVERNANCE_VOTES_TYPES',array('yes','no','abstain'));
+DEFINE('GOVERNANCE_VOTES_TYPES',array('yes','no','abstain','none'));
 
 function dmnpidcmp($a, $b)
 {
@@ -457,7 +457,7 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
         'VersionDisplay' => $versiondisplay,
         'VersionTestnet' => $testnet,
         'VersionEnabled' => $enabled,
-        'VersionURL' => $versionurl,
+        'VersionURL' => '',
         'VersionHash' => $versionhash,
         'VersionSize' => $versionsize,
         'VersionHandling' => $versionhandling);
