@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.7');
+DEFINE('DMN_VERSION','2.9.8');
 
 DEFINE('GOVERNANCE_VOTES_TYPES',array('yes','no','abstain'));
 
@@ -201,18 +201,6 @@ function dmn_getstatus($dashdinfo,$blockhash) {
 
 }
 
-function dmn_ismasternodeactive($ip,$masternodeinfo,&$listedinactive) {
-
-  $res = false;
-  $listedinactive = false;
-  if ($masternodeinfo !== false) {
-    $listedinactive = array_key_exists($ip,$masternodeinfo) && ($masternodeinfo[$ip] == 0);
-    $res = array_key_exists($ip,$masternodeinfo) && ($masternodeinfo[$ip] == 1);
-  }
-  return $res;
-
-}
-
 // Execute RPC commands
 function dmn_ctlrpc(&$commands) {
 
@@ -384,26 +372,34 @@ function dmn_ctlstartstop(&$commands) {
 //#############################################################################
 
 // Show usage of the script
-function dmn_help($exename) {
+function dmn_help($exename)
+{
 
   $exename = basename($exename);
-  echo "Usage: $exename action [option1] [option2] [..] [optionX]\n";
-  echo "Action         Description                      Expected parameters\n";
-  echo "address        Set masternode address           option1 = Address, option2 = Masternode\n";
-  echo "create         Creates the masternode (user)    option1 = external IP to use\n";
-  echo "disable        Disable masternode(s)            List of masternodes (ex: dmn03 dmn04)\n";
-  echo "enable         Enable masternode(s)             List of masternodes (ex: dmn03 dmn04)\n";
-  echo "status         Retrieve masternodes status      None or option1=html for HTML output\n";
-  echo "                                                option2=None or private (for no sensitive info)\n";
-  echo "\n";
-  echo "start          Starts nodes                     option1 = testnet|mainnet, option2 = all|masternode|p2pool\n";
-  echo "restart        Restarts nodes                   option1 = testnet|mainnet, option2 = all|masternode|p2pool\n";
-  echo "stop           Stop nodes                       option1 = testnet|mainnet, option2 = all|masternode|p2pool\n";
-  echo "\n";
-  echo "version        Create a new dashd version       option1 = binary path\n";
-  echo "                                                option2 = display string\n";
-  echo "                                                option3 = testnet only (1 or 0)\n";
-  echo "                                                option4 = enabled (1 or 0)\n";
+  xecho("Usage: $exename action [option1] [option2] [..] [optionX]\n");
+  xecho("\n");
+  xecho("CONFIGURATION:\n");
+  xecho("==============\n");
+  xecho("Action         Description                      Expected parameters\n");
+  xecho("-------------- -------------------------------- --------------------------------------------------------------\n");
+  xecho("create         Create a monitoring node (user)  option1 = external IP to use\n");
+  xecho("disable        Disable monitoring node(s)       List of nodes names (ex: dnmon03 dnmon04)\n");
+  xecho("enable         Enable monitoring node(s)        List of nodes names (ex: dnmon03 dnmon04)\n");
+  xecho("version        Create a new dashd version       option1 = binary path\n");
+  xecho("                                                option2 = display string\n");
+  xecho("                                                option3 = testnet only (1 or 0)\n");
+  xecho("                                                option4 = enabled (1 or 0)\n");
+  xecho("\n");
+  xecho("INTERACTION:\n");
+  xecho("============\n");
+  xecho("Action         Description                      Expected parameters\n");
+  xecho("-------------- -------------------------------- --------------------------------------------------------------\n");
+  xecho("start          Starts nodes                     option1 = testnet|mainnet, option2 = all|normal|block\n");
+  xecho("status         Retrieve monitoring status       None\n");
+  xecho("restart        Restarts nodes                   option1 = testnet|mainnet, option2 = all|normal|block\n");
+  xecho("stop           Stop nodes                       option1 = testnet|mainnet, option2 = all|normal|block\n");
+  xecho("\n");
+
 }
 
 // Create a new dashd version in the database usable by nodes
@@ -419,43 +415,42 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
     echo $versionsize." bytes... ";
     $versionhash = sha1(file_get_contents($versionpath));
     echo "OK (SHA1=$versionhash)\n";
-    xecho("Compressing version");
-    exec("/usr/bin/xz -zk $versionpath", $output, $res);
-    if ($res != 0) {
-      echo "Error ($res)\n";
-      die(7);
+
+    xecho("Detecting versionhandling parameter: ");
+
+    list($versionmajor,$versionminor,$versionpatch,$versionbuild) = explode(".",$versionraw);
+    $versionmajor = intval($versionmajor);
+    $versionminor = intval($versionminor);
+    $versionpatch = intval($versionpatch);
+    $versionbuild = intval($versionbuild);
+
+    echo "Major=$versionmajor Minor=$versionminor Patch=$versionpatch Build=$versionbuild";
+
+    if ($versionmajor >= 0) {
+      if ($versionminor >= 16) {
+        $versionhandling = 7;
+      }
+      elseif ($versionminor >= 13) {
+        $versionhandling = 6;
+      }
+      elseif ($versionminor == 12) {
+        if ($versionpatch == 3) {
+          $versionhandling = 5;
+        }
+        elseif ($versionpatch >= 1) {
+          $versionhandling = 4;
+        }
+        else {
+          $versionhandling = 3;
+        }
+      }
+      else {
+        $versionhandling = 2;
+      }
     }
-    $versionpathcomp = $versionpath.'.xz';
-    echo "Done (".filesize($versionpathcomp)." bytes)\n";
-    $versionurl = basename($versionpathcomp);
-    $versionpathcompdir = DMN_CDL_DIR.$versionurl;
-    $versionurl = DMN_CDL_URL.$versionurl;
-    xecho("Moving $versionpathcomp to $versionpathcompdir: ");
-    if (rename($versionpathcomp,$versionpathcompdir)) {
-      echo "OK\n";
-    }
-    else {
-      echo "Error (Failed to move)\n";
-    }
-    // TODO do a better job at detecting versions ! Reversing the versionhandling value to default to higher versionhandling
-    if ((substr($versionraw,0,5) == '0.16.')) {
-      $versionhandling = 7;
-    }
-    elseif ((substr($versionraw,0,5) == '0.13.') || (substr($versionraw,0,5) == '0.14.') || (substr($versionraw,0,5) == '0.15.')) {
-      $versionhandling = 6;
-    }
-    elseif (substr($versionraw,0,6) == '0.12.3') {
-      $versionhandling = 5;
-    }
-    elseif ((substr($versionraw,0,7) == '0.12.1.') || (substr($versionraw,0,7) == '0.12.2.')) {
-      $versionhandling = 4;
-    }
-    elseif (substr($versionraw,0,5) == '0.12.') {
-      $versionhandling = 3;
-    }
-    else {
-      $versionhandling = 2;
-    }
+
+    echo " => VersionHandling=$versionhandling !\n";
+
     xecho("Submitting new version to webservice: ");
     $payload = array('VersionPath' => $versionpath,
         'VersionRaw' => $versionraw,
@@ -488,7 +483,8 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
 
 }
 
-// Create a new Dash Masternode user, prepare folder and configuration
+// Create a new Dash Monitoring node user, prepare folder and configuration
+// TODO Broken
 function dmn_create($dmnpid,$ip,$forcename = '') {
 
   if ($forcename == '') {
@@ -507,7 +503,7 @@ function dmn_create($dmnpid,$ip,$forcename = '') {
     $testinfo = '';
   }
   echo "Creating $newuname: ";
-  exec('useradd -m -c "Dash$testinfo MasterNode #'.$newnum.'" -U -s /bin/false -p '.randomPassword(128).' '.$newuname.' 1>/dev/null 2>/dev/null',$output,$retval);
+  exec('useradd -m -c "Dash Ninja $testinfo Monitoring node #'.$newnum.'" -U -s /bin/false -p '.randomPassword(128).' '.$newuname.' 1>/dev/null 2>/dev/null',$output,$retval);
   if ($retval != 0) {
     echo "Already exists!\n";
     if ($forcename == '') {
@@ -2199,74 +2195,101 @@ $starttime = microtime(true);
 
 xecho("Dash Ninja Control [dmnctl] v".DMN_VERSION." (".date('Y-m-d H:i:s',filemtime(__FILE__)).")\n");
 
+// If there is at least a parameter identify the action
 if ($argc > 1) {
+
+  // Populate the $action array
+  $action = array(
+    "disable" => (strcasecmp($argv[1], 'disable') == 0),
+    "enable" => (strcasecmp($argv[1], 'enable') == 0),
+    "restart" => (strcasecmp($argv[1], 'restart') == 0),
+    "start" => (strcasecmp($argv[1], 'start') == 0),
+    "status" => (strcasecmp($argv[1], 'status') == 0),
+    "stop" => (strcasecmp($argv[1], 'stop') == 0),
+    "version" => (strcasecmp($argv[1], 'stop') == 0),
+    "nodelist" => false,
+    "keeprunning" => false,
+  );
+
+  // We need the node list from CMD API
+  $action["nodelist"] = ( $action["status"] || $action["start"] || $action["stop"] || $action["restart"] );
+
+  // We need to execute keeprunning portion of the script
+  $action["keeprunning"] = $action["nodelist"];
+
+  // Is is testnet?
   $istestnet = 0;
   if ($argc > 2) {
-      if ( ( (strcasecmp($argv[1], 'status') == 0)
-              || (strcasecmp($argv[1],'start') == 0)
-              || (strcasecmp($argv[1],'stop') == 0)
-              || (strcasecmp($argv[1],'restart') == 0) )
-           && ((strcasecmp($argv[2], 'testnet') == 0))) {
+      if ( (( $action["status"] || $action["start"] || $action["stop"] || $action["restart"] )) && ((strcasecmp($argv[2], 'testnet') == 0))) {
           $istestnet = 1;
       }
   }
-  xecho("Querying list of nodes for this hub: ");
-  $params = array();
-  $content = dmn_cmd_get('nodes',$params,$response);
-  $nodes = array();
-  if (strlen($content) > 0) {
-    $content = json_decode($content,true);
-    if (($response['http_code'] >= 200) && ($response['http_code'] <= 299)) {
-      $nodes = $content['data'];
-      echo "Success (".count($nodes)." nodes)\n";
+
+  // If we need the node list
+  if ( $action["nodelist"] ) {
+
+    // Retrieve node info from CMD API
+    xecho("Querying list of nodes for this hub: ");
+    $params = array();
+    $content = dmn_cmd_get('nodes', $params, $response);
+    $nodes = array();
+    if (strlen($content) > 0) {
+      $content = json_decode($content, true);
+      if (($response['http_code'] >= 200) && ($response['http_code'] <= 299)) {
+        $nodes = $content['data'];
+        echo "Success (" . count($nodes) . " nodes)\n";
+      } elseif (($response['http_code'] >= 400) && ($response['http_code'] <= 499)) {
+        echo "Error (" . $response['http_code'] . ": " . implode(' / ', $content['messages']) . ")\n";
+      } else {
+        echo "Error (" . $response['http_code'] . ": " . implode(' / ', $content['messages']) . ")\n";
+      }
+    } else {
+      echo "Error (empty result) [HTTP CODE " . $response['http_code'] . "]\n";
     }
-    elseif (($response['http_code'] >= 400) && ($response['http_code'] <= 499)) {
-      echo "Error (".$response['http_code'].": ".implode(' / ',$content['messages']).")\n";
-    }
-    else {
-      echo "Error (".$response['http_code'].": ".implode(' / ',$content['messages']).")\n";
+    unset($content, $response, $params);
+
+    // Retrieve the nodes process ids
+    $dmnpid = dmn_getpids($nodes, (strcasecmp($argv[1], 'status') == 0), $istestnet);
+
+    // Check/Start of the nodes are still running (restart them if needed)
+    // (keeprunning in node configuration)
+    if ($action["keeprunning"]) {
+      dmn_startkeeprunning($dmnpid);
     }
   }
-  else {
-    echo "Error (empty result) [HTTP CODE ".$response['http_code']."]\n";
-  }
-  unset($content,$response,$params);
-
-  $dmnpidstatus = dmn_getpids($nodes,(strcasecmp($argv[1],'status') == 0),$istestnet);
-  $dmnpid = $dmnpidstatus;
-  dmn_startkeeprunning($dmnpid);
-
 }
 
+// If there are no parameters, display help
 if ($argc == 1) {
   dmn_help($argv[0]);
 }
-elseif ((strcasecmp($argv[1],'address') == 0) && ($argc == 4)) {
-  dmn_address($dmnpid,$argv[2],$argv[3]);
-}
-elseif (strcasecmp($argv[1],'disable') == 0) {
+// Disable nodes
+// TODO update CMD API to actually disable monitoring nodes (not done in conf file anymore)
+elseif ($action["disable"]) {
   $dmntodisable = array();
   for ($x = 2; $x < $argc; $x++) {
     $dmntodisable[] = $argv[$x];
   }
   dmn_disable($dmnpid,$dmntodisable);
 }
-elseif (strcasecmp($argv[1],'enable') == 0) {
+// Enable nodes
+// TODO update CMD API to actually enable monitoring nodes (not done in conf file anymore)
+elseif ($action["enable"]) {
   $dmntoenable = array();
   for ($x = 2; $x < $argc; $x++) {
     $dmntoenable[] = $argv[$x];
   }
   dmn_enable($dmnpid,$dmntoenable);
 }
-elseif (strcasecmp($argv[1],'status') == 0) {
+// Retrieve status of monitoring nodes and submit it to CMD API
+elseif ($action["status"]) {
   $semfnam = sprintf(DMN_CTLSTATUSAUTO_SEMAPHORE,$istestnet);
   file_put_contents($semfnam,sprintf('%s',getmypid()));
-  dmn_status($dmnpidstatus,$istestnet);
+  dmn_status($dmnpid,$istestnet);
   unlink($semfnam);
 }
-elseif ((strcasecmp($argv[1],'start') == 0)
-     || (strcasecmp($argv[1],'stop') == 0)
-     || (strcasecmp($argv[1],'restart') == 0)) {
+// Start/Stop/Restart actions
+elseif ($action["start"] || $action["stop"] || $action["restart"]) {
   $todo = strtolower($argv[1]);
   $testnet = ($argc > 2) && ($argv[2] == 'testnet');
   if (($argc > 3)
@@ -2279,6 +2302,7 @@ elseif ((strcasecmp($argv[1],'start') == 0)
   }
   dmn_startstop($dmnpid,$todo,$testnet,$nodetype,($argc > 4) && (strcasecmp($argv[4],'reindex') == 0));
 }
+// Create new dashd version in CMD API
 elseif (strcasecmp($argv[1],'version') == 0) {
   if ($argc == 6) {
     dmn_version_create($argv[2],$argv[3],$argv[4],$argv[5]);
@@ -2288,6 +2312,7 @@ elseif (strcasecmp($argv[1],'version') == 0) {
     echo "Not enough parameters for version action.\n";
   }
 }
+// Create new monitoring node
 elseif (strcasecmp($argv[1],'create') == 0) {
   if ($argc == 3) {
     dmn_create($dmnpid,$argv[2]);
@@ -2299,6 +2324,7 @@ elseif (strcasecmp($argv[1],'create') == 0) {
     dmn_help($argv[0]);
   }
 }
+// If we could not find anything to do, display help
 else {
   dmn_help($argv[0]);
   echo "Unknown action: ".$argv[1]."\n";
