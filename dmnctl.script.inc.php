@@ -1285,7 +1285,7 @@ function dmn_status($dmnpid,$istestnet) {
         $processstatus = 'running';
 
         // Display some feedback
-        echo "OK ";
+        echo "\e[92mOK\e[0m ";
         echo str_pad($version,$nbversion,' ',STR_PAD_LEFT)
         ." ".str_pad($protocol,$nbprotocol,' ',STR_PAD_LEFT)
         ." ".str_pad($blocks,$nbblocks,' ',STR_PAD_LEFT)
@@ -1729,7 +1729,7 @@ function dmn_status($dmnpid,$istestnet) {
         $countrycode = '__';
       }
       $processstatus = 'stopped';
-      echo "NS ".str_repeat(" ",96)."$ip\n";
+      echo "\e[91mNS\e[0m ".str_repeat(" ",97)."$ip\n";
     }
     else {
       // Remove the notresponding counter file
@@ -1737,7 +1737,7 @@ function dmn_status($dmnpid,$istestnet) {
         unlink(DMN_NRCOUNTDIR."dmnctl-NR-$uname-counter");
       }
       $processstatus = 'disabled';
-      echo "--\n";
+      echo "\e[90m--\e[0m\n";
     }
     $wsstatus[$uname] = array("ProcessStatus" => $processstatus,
                               "Version" => $version,
