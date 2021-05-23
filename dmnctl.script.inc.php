@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.9');
+DEFINE('DMN_VERSION','2.9.10');
 
 DEFINE('GOVERNANCE_VOTES_TYPES',array('yes','no','abstain','none'));
 
@@ -57,7 +57,7 @@ function dmn_getcountry($mnip,&$countrycode) {
 function dmn_getip($pid,$uname) {
 
   $res = false;
-  exec('netstat -ntpl | grep "tcp  " | egrep ":([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])" | grep "'.$pid.'/darkcoind\|'.$pid.'/dashd"',$output,$retval);
+  exec('netstat -ntpl | grep "tcp  " | egrep ":([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])" | grep "'.$pid.'/darkcoind\|'.$pid.'/dashd" | grep -v 127.',$output,$retval);
   if (isset($output[0])) {
     if (preg_match("/tcp        0      0 (\d*\.\d*.\d*.\d*:\d*)/", $output[0], $output_array) == 1) {
       $res = $output_array[1];
@@ -867,6 +867,11 @@ function dmn_status($dmnpid,$istestnet) {
     // Only vh 2 and below
     if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '') && ($dmnpidinfo['versionhandling'] <= 2)) {
       $commands[] = array("status" => 0,
+        "dmnnum" => $dmnnum,
+        "datatype" => "mncurrent",
+        "cmd" => $uname.' "masternode current"',
+        "file" => "/dev/shm/dmnctl/$uname.$tmpdate.masternode_current.json");
+      $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "mnlist",
                           "cmd" => $uname.' "masternode list"',
@@ -908,11 +913,6 @@ function dmn_status($dmnpid,$istestnet) {
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
     $uname = $dmnpidinfo['uname'];
     if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '')) {
-      $commands[] = array("status" => 0,
-                          "dmnnum" => $dmnnum,
-                          "datatype" => "mncurrent",
-                          "cmd" => $uname.' "masternode current"',
-                          "file" => "/dev/shm/dmnctl/$uname.$tmpdate.masternode_current.json");
       $commands[] = array("status" => 0,
                           "dmnnum" => $dmnnum,
                           "datatype" => "spork",
