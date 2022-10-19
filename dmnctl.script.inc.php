@@ -23,7 +23,7 @@ if (!defined('DMN_SCRIPT') || !defined('DMN_CONFIG') || (DMN_SCRIPT !== true) ||
   die('Not executable');
 }
 
-DEFINE('DMN_VERSION','2.9.10');
+DEFINE('DMN_VERSION','2.9.12');
 
 DEFINE('GOVERNANCE_VOTES_TYPES',array('yes','no','abstain','none'));
 
@@ -418,7 +418,16 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
 
     xecho("Detecting versionhandling parameter: ");
 
-    list($versionmajor,$versionminor,$versionpatch,$versionbuild) = explode(".",$versionraw);
+    $versionexploded = explode(".",$versionraw);
+
+    if (count($versionexploded) === 4) {
+      list($versionmajor,$versionminor,$versionpatch,$versionbuild) = $versionexploded;
+    }
+    else {
+      list($versionmajor,$versionminor,$versionpatch) = $versionexploded;
+      $versionbuild = 0;
+    }
+
     $versionmajor = intval($versionmajor);
     $versionminor = intval($versionminor);
     $versionpatch = intval($versionpatch);
@@ -426,7 +435,7 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
 
     echo "Major=$versionmajor Minor=$versionminor Patch=$versionpatch Build=$versionbuild";
 
-    if ($versionmajor >= 0) {
+    if ($versionmajor == 0) {
       if ($versionminor >= 16) {
         $versionhandling = 7;
       }
@@ -447,6 +456,9 @@ function dmn_version_create($versionpath, $versiondisplay, $testnet, $enabled) {
       else {
         $versionhandling = 2;
       }
+    }
+    elseif ($versionmajor >= 18) {
+      $versionhandling = 7;
     }
 
     echo " => VersionHandling=$versionhandling !\n";
@@ -609,8 +621,8 @@ function dmn_enable($dmnpid,$dmntoenable) {
 // Start/Stop/Restart nodes
 // $todo can be "start", "stop" or "restart"
 // If $testnet is true then only start testnet (else start mainnet)
-// $nodetype can be "p2pool" or "masternode"
-function dmn_startstop($dmnpid,$todo,$testnet = false,$nodetype = 'masternode',$withreindex = false) {
+// $nodetype can be "block" or "normal"
+function dmn_startstop($dmnpid,$todo,$testnet = false,$nodetype = 'normal',$withreindex = false) {
 
   $nodes = array();
   foreach($dmnpid as $node) {
@@ -816,7 +828,7 @@ function dmn_status($dmnpid,$istestnet) {
   foreach($dmnpid as $dmnnum => $dmnpidinfo) {
     $uname = $dmnpidinfo['uname'];
     // Only vh 3+
-    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '') && ($dmnpidinfo['versionhandling'] >= 3) && ($dmnpidinfo['type'] != 'p2pool')) {
+    if (($dmnpidinfo['pidstatus']) && ($dmnpidinfo['currentbin'] != '') && ($dmnpidinfo['versionhandling'] >= 3) && ($dmnpidinfo['type'] != 'p2pool') && ($dmnpidinfo['type'] != 'block')) {
       // If we are in v12.3+ (vh=5+) we use the new JSON output (faster and easier)
       if ($dmnpidinfo['versionhandling'] >= 5) {
            $commands[] = array("status" => 0,
@@ -1443,7 +1455,7 @@ function dmn_status($dmnpid,$istestnet) {
               }
           }
           // gobject proposals and triggers handling (4) [v12.1]
-          elseif (($dmnpidinfo['versionhandling'] >= 4) && ($dmnpidinfo['type'] != 'p2pool')) {
+          elseif (($dmnpidinfo['versionhandling'] >= 4) && ($dmnpidinfo['type'] != 'p2pool') && ($dmnpidinfo['type'] != 'block')) {
               $collateralregexp = "/([\dabcdef]{64})-(\d+)/";
               // Store the next superblock
               if (($governancenextsb[$dashdinfo['testnet']] === false) || ($governancenextsb[$dashdinfo['testnet']] > intval($dmnpidinfo['getgovernanceinfo']['nextsuperblock']))) {
@@ -1591,7 +1603,7 @@ function dmn_status($dmnpid,$istestnet) {
           }
 
           // Parse the masternode list
-          if ($dmnpidinfo['type'] == 'p2pool') {
+          if (($dmnpidinfo['type'] == 'p2pool') || ($dmnpidinfo['type'] == 'block')) {
               $mn3listfull = array();
           }
           else {
@@ -2294,11 +2306,13 @@ elseif ($action["start"] || $action["stop"] || $action["restart"]) {
   $testnet = ($argc > 2) && ($argv[2] == 'testnet');
   if (($argc > 3)
    && ((strcasecmp($argv[3],'p2pool') == 0)
-    || (strcasecmp($argv[3],'masternode') == 0))) {
+    || (strcasecmp($argv[3],'masternode') == 0)
+    || (strcasecmp($argv[3],'normal') == 0)
+    || (strcasecmp($argv[3],'block') == 0))) {
     $nodetype = $argv[3];
   }
   else {
-    $nodetype = "masternode";
+    $nodetype = "normal";
   }
   dmn_startstop($dmnpid,$todo,$testnet,$nodetype,($argc > 4) && (strcasecmp($argv[4],'reindex') == 0));
 }
