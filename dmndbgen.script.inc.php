@@ -49,7 +49,8 @@ INSERT INTO cmd_info_masternode_active (MasternodeOutputHash, MasternodeOutputIn
     WHERE
         cn.NodeID = cns.NodeID AND
         ciml.NodeID = cns.NodeID AND
-        cn.NodeType <> 'p2pool'
+        cn.NodeType <> 'p2pool' AND
+        cn.NodeType <> 'block'
     GROUP BY
         ciml.MasternodeOutputHash, ciml.MasternodeOutputIndex, ciml.MasternodeTestNet, cns.NodeProtocol
 ON DUPLICATE KEY UPDATE ActiveCount = VALUES(ActiveCount), InactiveCount = VALUES(InactiveCount), UnlistedCount = VALUES(UnlistedCount), LastSeen = current_timestamp() 	
