@@ -132,6 +132,13 @@ define('DMN_SSL_KEY','/etc/ssl/private/hub01.cmd.yourdomain.tk.key');
 //  Private API interface to use
 define('DMN_INTERFACE','::1');
 
+// Third party APIs
+//  Coinmarketcap
+//    Register to get your API key, with Free level the run delta of 1200 sec should be OK)
+//    If you get a paid level you can decrease the run delta.
+define('COINMARKETCAP_API_KEY','b54bcf4d-1bca-4e8e-9a24-22ff2c3d462c');
+define('COINMARKETCAP_RUN_DELTA', 1200);
+
 // Indicate the configuration was loaded
 DEFINE('DMN_CONFIG',true);
 

@@ -19,25 +19,64 @@
 
  */
 
-DEFINE('DMN_VERSION','2.3.0');
+DEFINE('DMN_VERSION','2.4.0');
 
 xecho('dmnthirdpartiesfetch v'.DMN_VERSION."\n");
 
 $tp = array();
 
-xecho("Fetching from Kraken: ");
+xecho("Get last fetch time: ");
+
+$content = dmn_api_get('/tablevars',[],$response);
+$runcoinmarketcap = false;
+if (strlen($content) > 0) {
+  $content = json_decode($content,true);
+  if (($response['http_code'] >= 200) && ($response['http_code'] <= 299)) {
+    $delta = time() - intval($content['data']['tablevars']['marketcapbtc']['LastUpdate']);
+    $runcoinmarketcap = $delta >= COINMARKETCAP_RUN_DELTA;
+    echo "Success... $delta seconds\n";
+
+  }
+  elseif (($response['http_code'] >= 400) && ($response['http_code'] <= 499)) {
+    echo "Error (".$response['http_code'].": ".$content['message'].")\n";
+  }
+}
+else {
+  echo "Error (empty result) [HTTP CODE ".$response['http_code']."]\n";
+}
+
+xecho("Fetching from Kraken: EUR/BTC... ");
+$btceur = 1.0;
+$btcusd = 1.0;
 try {
   $kraken = new \Payward\KrakenAPI('','');
-  $dataKraken = $kraken->QueryPublic('Ticker', array('pair' => 'XBTCZEUR'));
+  $dataKraken = $kraken->QueryPublic('Ticker', array('pair' => 'XXBTZEUR'));
   if (is_array($dataKraken) && isset($dataKraken['error']) && (count($dataKraken['error']) == 0)
     && isset($dataKraken['result']) && is_array($dataKraken['result'])
     && isset($dataKraken['result']['XXBTZEUR']) && is_array($dataKraken['result']['XXBTZEUR'])
     && isset($dataKraken['result']['XXBTZEUR']['p']) && is_array($dataKraken['result']['XXBTZEUR']['p'])
     && isset($dataKraken['result']['XXBTZEUR']['p'][1]) ) {
+    $btceur = floatval($dataKraken['result']['XXBTZEUR']['p'][1]);
     $tp["eurobtc"] = array("StatValue" => $dataKraken['result']['XXBTZEUR']['p'][1],
                            "LastUpdate" => time(),
                            "Source" => "kraken");
-    echo "OK (".$dataKraken['result']['XXBTZEUR']['p'][1]." EUR/BTC)\n";
+    echo "OK (".$dataKraken['result']['XXBTZEUR']['p'][1]." EUR/BTC)";
+  }
+  else {
+    echo "ERROR";
+  }
+  echo " USD/BTC... ";
+  $dataKraken = $kraken->QueryPublic('Ticker', array('pair' => 'XXBTZUSD'));
+  if (is_array($dataKraken) && isset($dataKraken['error']) && (count($dataKraken['error']) == 0)
+    && isset($dataKraken['result']) && is_array($dataKraken['result'])
+    && isset($dataKraken['result']['XXBTZUSD']) && is_array($dataKraken['result']['XXBTZUSD'])
+    && isset($dataKraken['result']['XXBTZUSD']['p']) && is_array($dataKraken['result']['XXBTZUSD']['p'])
+    && isset($dataKraken['result']['XXBTZUSD']['p'][1]) ) {
+    $btcusd = floatval($dataKraken['result']['XXBTZUSD']['p'][1]);
+    $tp["usdbtc"] = array("StatValue" => $dataKraken['result']['XXBTZUSD']['p'][1],
+      "LastUpdate" => time(),
+      "Source" => "kraken");
+    echo "OK (".$dataKraken['result']['XXBTZUSD']['p'][1]." USD/BTC)\n";
   }
 }
 catch (Exception $e) {
@@ -70,11 +109,13 @@ else {
 
 xecho("Fetching from Poloniex: ");
 $res = file_get_contents('https://poloniex.com/public?command=returnTicker');
+$btcdash = 1;
 if ($res !== false) {
   $res = json_decode($res,true);
 //  var_dump($res);
   if (($res !== false) && is_array($res) && (count($res) > 0) && array_key_exists('BTC_DASH',$res)
       && is_array($res["BTC_DASH"]) && array_key_exists("last",$res["BTC_DASH"])) {
+    $btcdash = floatval($res["BTC_DASH"]["last"]);
     $tp["btcdrk"] = array("StatValue" => $res["BTC_DASH"]["last"],
         "LastUpdate" => time(),
         "Source" => "poloniex");
@@ -150,17 +191,24 @@ else {
   echo "Failed (GET)\n";
 }*/
 
-xecho("Fetching from itBit: ");
-$res = file_get_contents('https://api.itbit.com/v1/markets/XBTUSD/ticker');
+/*xecho("Fetching from Paxos: ");
+$context = stream_context_create(
+  array(
+    "http" => array(
+      "user_agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0",
+    )
+  )
+);
+$res = file_get_contents('https://api.sandbox.paxos.com/v2/markets/BTCUSD/ticker',false,$context);
 if ($res !== false) {
   $res = json_decode($res,true);
-  if (($res !== false) && is_array($res) && array_key_exists('pair',$res) && ($res["pair"] == "XBTUSD") && array_key_exists('lastPrice',$res) && array_key_exists('serverTimeUTC',$res)) {
-    $timestamp = strtotime($res['serverTimeUTC']);
+  if (($res !== false) && is_array($res) && array_key_exists('market',$res) && ($res["market"] === "BTCUSD") && array_key_exists('today',$res) && array_key_exists('snapshot_at',$res)) {
+    $timestamp = strtotime($res['snapshot_at']);
     $tbstamp = date('Y-m-d H:i:s',$timestamp);
-    $tp["usdbtc"] = array("StatValue" => floatval($res["lastPrice"]),
+    $tp["usdbtc"] = array("StatValue" => floatval($res["today"]["volume_weighted_average_price"]),
         "LastUpdate" => intval($timestamp),
-        "Source" => "itbit");
-    echo "OK (".$res['lastPrice']." / $tbstamp)\n";
+        "Source" => "paxos");
+    echo "OK (".$res["today"]["volume_weighted_average_price"]." / $tbstamp)\n";
   }
   else {
     echo "Failed (JSON)\n";
@@ -168,129 +216,124 @@ if ($res !== false) {
 }
 else {
   echo "Failed (GET)\n";
-}
+}*/
 
 // https://bittrex.com/api/v1.1/public/getticker?market=BTC-DASH
 
 xecho("Fetching from CoinMarketCap: ");
-$res = file_get_contents('http://coinmarketcap-nexuist.rhcloud.com/api/dash');
-$resdone = 0;
-if ($res !== false) {
-  $res = json_decode($res,true);
-  if (($res !== false) && is_array($res) && array_key_exists('symbol',$res) && ($res['symbol'] == 'dash') && array_key_exists('timestamp',$res)) {
-    $tbstamp = date('Y-m-d H:i:s',$res['timestamp']);
-    if (array_key_exists('position',$res)) {
-      $tp["marketcappos"] = array("StatValue" => $res["position"],
-                                  "LastUpdate" => intval($res['timestamp']),
-                                  "Source" => "coinmarketcap");
-      $resdone++;
-    }
-    else {
-      echo "Failed (JSON/position) ";
-    }
-    if (array_key_exists('change',$res)) {
-      $tp["marketcapchange"] = array("StatValue" => $res["change"],
-                                     "LastUpdate" => intval($res['timestamp']),
-                                     "Source" => "coinmarketcap");
-      $resdone++;
-    }
-    else {
-      echo "Failed (JSON/change) ";
-    }
-    if (array_key_exists('supply',$res)) {
-      $tp["marketcapsupply"] = array("StatValue" => $res["supply"],
-                                     "LastUpdate" => intval($res['timestamp']),
-                                     "Source" => "coinmarketcap");
-      $resdone++;
-    }
-    else {
-      echo "Failed (JSON/supply) ";
-    }
-    if (array_key_exists('market_cap',$res) && is_array($res['market_cap'])) {
-      if (array_key_exists('btc',$res['market_cap'])) {
-        $tp["marketcapbtc"] = array("StatValue" => $res['market_cap']['btc'],
-                                    "LastUpdate" => intval($res['timestamp']),
-                                    "Source" => "coinmarketcap");
+
+if ($runcoinmarketcap) {
+// * https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest?symbol=DASH
+  $url = 'https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest';
+//$url = 'https://sandbox-api.coinmarketcap.com/v1/cryptocurrency/listings/latest';
+
+  $parameters = [
+    'slug' => 'dash',
+    'convert' => 'BTC'
+  ];
+
+  $headers = [
+    'Accepts: application/json',
+    'X-CMC_PRO_API_KEY: '.COINMARKETCAP_API_KEY
+  ];
+  $qs = http_build_query($parameters); // query string encode the parameters
+  $request = "{$url}?{$qs}"; // create the request URL
+
+  $curl = curl_init(); // Get cURL resource
+// Set cURL options
+  curl_setopt_array($curl, array(
+    CURLOPT_URL => $request,            // set the request URL
+    CURLOPT_HTTPHEADER => $headers,     // set the headers
+    CURLOPT_RETURNTRANSFER => 1         // ask for raw response instead of bool
+  ));
+
+  $res = curl_exec($curl); // Send the request, save the response
+  curl_close($curl); // Close request
+  $resdone = 0;
+  if ($res !== false) {
+    $res = json_decode($res, true);
+    if (($res !== false) && is_array($res)
+      && array_key_exists('data', $res) && is_array($res['data']) && (count($res['data']) === 1)
+      && array_key_exists(131, $res['data'])
+      && array_key_exists('cmc_rank', $res['data'][131]) && array_key_exists('total_supply', $res['data'][131])
+      && array_key_exists('quote', $res['data'][131]) && is_array($res['data'][131]['quote']) && (count($res['data'][131]['quote']) === 1)
+      && array_key_exists('status', $res) && is_array($res['status']) && array_key_exists('timestamp', $res['status'])) {
+      $tbstamp = strtotime($res['status']['timestamp']);
+      $res = $res['data'][131];
+      if (array_key_exists('cmc_rank', $res)) {
+        $tp["marketcappos"] = array("StatValue" => $res["cmc_rank"],
+          "LastUpdate" => intval($tbstamp),
+          "Source" => "coinmarketcap");
         $resdone++;
+      } else {
+        echo "Failed (JSON/cmc_rank) ";
       }
-      else {
-        echo "Failed (JSON/market_cap/btc) ";
-      }
-      if (array_key_exists('usd',$res['market_cap'])) {
-        $tp["marketcapusd"] = array("StatValue" => $res['market_cap']['usd'],
-                                    "LastUpdate" => intval($res['timestamp']),
-                                    "Source" => "coinmarketcap");
+      if (array_key_exists('total_supply', $res)) {
+        $tp["marketcapsupply"] = array("StatValue" => $res["total_supply"],
+          "LastUpdate" => intval($tbstamp),
+          "Source" => "coinmarketcap");
         $resdone++;
+      } else {
+        echo "Failed (JSON/total_supply) ";
       }
-      else {
-        echo "Failed (JSON/market_cap/usd) ";
+      if (array_key_exists('BTC', $res['quote']) && is_array($res['quote']['BTC'])) {
+        if (array_key_exists('market_cap', $res['quote']['BTC'])) {
+          $tp["marketcapbtc"] = array("StatValue" => $res['quote']['BTC']['market_cap'],
+            "LastUpdate" => intval($tbstamp),
+            "Source" => "coinmarketcap");
+          $resdone++;
+          $tp["marketcapusd"] = array("StatValue" => $res['quote']['BTC']['market_cap']*$btcusd,
+            "LastUpdate" => intval($tbstamp),
+            "Source" => "coinmarketcap");
+          $resdone++;
+          $tp["marketcapeur"] = array("StatValue" => $res['quote']['BTC']['market_cap']*$btceur,
+            "LastUpdate" => intval($tbstamp),
+            "Source" => "coinmarketcap");
+          $resdone++;
+        } else {
+          echo "Failed (JSON/BTC/market_cap) ";
+        }
+        if (array_key_exists('volume_24h', $res['quote']['BTC'])) {
+          $tp["volumebtc"] = array("StatValue" => $res['quote']['BTC']['volume_24h'],
+            "LastUpdate" => intval($tbstamp),
+            "Source" => "coinmarketcap");
+          $resdone++;
+          $tp["volumeusd"] = array("StatValue" => $res['quote']['BTC']['volume_24h']*$btcusd,
+            "LastUpdate" => intval($tbstamp),
+            "Source" => "coinmarketcap");
+          $resdone++;
+          $tp["volumeeur"] = array("StatValue" => $res['quote']['BTC']['volume_24h']*$btceur,
+            "LastUpdate" => intval($tbstamp),
+            "Source" => "coinmarketcap");
+          $resdone++;
+          $tp["marketcapchange"] = array("StatValue" => $res["quote"]['BTC']['volume_change_24h'],
+            "LastUpdate" => intval($tbstamp),
+            "Source" => "coinmarketcap");
+          $resdone++;
+        } else {
+          echo "Failed (JSON/BTC/volume_24h) ";
+        }
       }
-      if (array_key_exists('eur',$res['market_cap'])) {
-        $tp["marketcapeur"] = array("StatValue" => $res['market_cap']['eur'],
-                                    "LastUpdate" => intval($res['timestamp']),
-                                    "Source" => "coinmarketcap");
-        $resdone++;
+      if ($resdone > 0) {
+        if ($resdone == 9) {
+          echo "OK";
+        } else {
+          echo "Partial";
+        }
+        echo " ($resdone values retrieved)\n";
+      } else {
+        echo "NOK\n";
       }
-      else {
-        echo "Failed (JSON/market_cap/eur) ";
-      }
+    } else {
+      echo "Failed (JSON)\n";
     }
-    else {
-      echo "Failed (JSON/market_cap) ";
-    }
-    if (array_key_exists('volume',$res) && is_array($res['volume'])) {
-      if (array_key_exists('usd',$res['volume'])) {
-        $tp["volumeusd"] = array("StatValue" => $res['volume']['usd'],
-                                 "LastUpdate" => intval($res['timestamp']),
-                                 "Source" => "coinmarketcap");
-        $resdone++;
-      }
-      else {
-        echo "Failed (JSON/volume/usd) ";
-      }
-      if (array_key_exists('eur',$res['volume'])) {
-        $tp["volumeeur"] = array("StatValue" => $res['volume']['eur'],
-                                 "LastUpdate" => intval($res['timestamp']),
-                                 "Source" => "coinmarketcap");
-        $resdone++;
-      }
-      else {
-        echo "Failed (JSON/volume/eur) ";
-      }
-      if (array_key_exists('btc',$res['volume'])) {
-        $tp["volumebtc"] = array("StatValue" => $res['volume']['btc'],
-                                 "LastUpdate" => intval($res['timestamp']),
-                                 "Source" => "coinmarketcap");
-        $resdone++;
-      }
-      else {
-        echo "Failed (JSON/volume/btc) ";
-      }
-    }
-    else {
-      echo "Failed (JSON/volume) ";
-    }
-    if ($resdone > 0) {
-      if ($resdone == 9) {
-        echo "OK";
-      }
-      else {
-        echo "Partial";
-      }
-      echo " ($resdone values retrieved)\n";
-    }
-    else {
-      echo "NOK\n";
-    }
-  }
-  else {
-    echo "Failed (JSON)\n";
+  } else {
+    echo "Failed (GET)\n";
   }
 }
 else {
-  echo "Failed (GET)\n";
+  echo "Skipping (Time elapsed since last fetch not long enough)\n";
 }
-
 $dw = array();
 
 xecho("Fetching budgets list from DashCentral: ");
@@ -371,7 +414,7 @@ xecho("Submitting to web service: ");
 $payload = array("thirdparties" => $tp,
                  "dashwhale" => $dw);
 $content = dmn_cmd_post('/thirdparties',$payload,$response);
-var_dump($content);
+//var_dump($content);
 if (strlen($content) > 0) {
   $content = json_decode($content,true);
   if (($response['http_code'] >= 200) && ($response['http_code'] <= 299)) {
